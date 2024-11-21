@@ -6,6 +6,7 @@ node_modules/
 dist/
 build/
 lib/
+project/
 
 # IDE and OS files
 .DS_Store
