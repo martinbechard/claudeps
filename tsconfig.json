@@ -1,0 +1,25 @@
+{
+  "compilerOptions": {
+    "sourceMap": true, // Enables source map generation
+    "inlineSourceMap": false, // Keep source maps as separate files
+    "inlineSources": true, // Include source code in source maps
+    "target": "ES2020",
+    "module": "CommonJS",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "outDir": "./dist",
+    "rootDir": "./",
+    "baseUrl": "./",
+    "paths": {
+      "@/*": ["./src/*"]
+    },
+    "resolveJsonModule": true,
+    "moduleResolution": "node",
+    "noImplicitAny": false,
+    "lib": ["dom", "es2020"]
+  },
+  "include": ["src/**/*", "tests/**/*", "jest.config.ts"],
+  "exclude": ["node_modules", "dist", "coverage"]
+}

@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Claude Extension Settings</title>
+    <style>
+      body {
+        padding: 20px;
+        font-family: system-ui, -apple-system, sans-serif;
+      }
+      .container {
+        max-width: 600px;
+        margin: 0 auto;
+      }
+      .form-group {
+        margin-bottom: 20px;
+      }
+      label {
+        display: block;
+        margin-bottom: 5px;
+        font-weight: 500;
+      }
+      input[type="text"] {
+        width: 100%;
+        padding: 8px;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+        font-size: 14px;
+      }
+      .error {
+        color: #dc3545;
+        font-size: 14px;
+        margin-top: 5px;
+        display: none;
+      }
+      .success {
+        color: #28a745;
+        font-size: 14px;
+        margin-top: 5px;
+        display: none;
+      }
+      .button-group {
+        display: flex;
+        gap: 10px;
+      }
+      button {
+        background: #0066cc;
+        color: white;
+        border: none;
+        padding: 8px 16px;
+        border-radius: 4px;
+        cursor: pointer;
+      }
+      button:hover {
+        background: #0052a3;
+      }
+      button:disabled {
+        background: #ccc;
+        cursor: not-allowed;
+      }
+      #testApiKey {
+        background: #28a745;
+      }
+      #testApiKey:hover {
+        background: #218838;
+      }
+      #testApiKey:disabled {
+        background: #ccc;
+      }
+      .status {
+        margin-top: 10px;
+        padding: 10px;
+        border-radius: 4px;
+        display: none;
+      }
+      .status.testing {
+        display: block;
+        background: #fff3cd;
+        color: #856404;
+        border: 1px solid #ffeeba;
+      }
+      .status.success {
+        display: block;
+        background: #d4edda;
+        color: #155724;
+        border: 1px solid #c3e6cb;
+      }
+      .status.error {
+        display: block;
+        background: #f8d7da;
+        color: #721c24;
+        border: 1px solid #f5c6cb;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>Claude Extension Settings</h1>
+      <form id="settingsForm">
+        <div class="form-group">
+          <label for="apiKey">Anthropic API Key</label>
+          <input type="text" id="apiKey" placeholder="sk-ant-..." required />
+          <div class="error" id="apiKeyError"></div>
+          <div class="success" id="apiKeySuccess"></div>
+          <div class="status" id="apiKeyStatus"></div>
+        </div>
+        <div class="form-group">
+          <label for="model">Claude Model</label>
+          <input
+            type="text"
+            id="model"
+            placeholder="claude-3-5-sonnet-20241022"
+            value="claude-3-5-sonnet-20241022"
+            required
+          />
+          <div class="error" id="modelError"></div>
+          <div class="success" id="modelSuccess"></div>
+        </div>
+        <div class="button-group">
+          <button type="submit">Save</button>
+          <button type="button" id="testApiKey">Test API Key</button>
+        </div>
+      </form>
+    </div>
+    <script src="options.js"></script>
+  </body>
+</html>

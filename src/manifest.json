@@ -1,0 +1,39 @@
+{
+  "manifest_version": 3,
+  "name": "ClaudePS Extension",
+  "version": "1.0.0",
+  "description": "Enhances interaction with Claude AI interface",
+  "permissions": ["activeTab", "scripting", "storage", "downloads"],
+  "host_permissions": ["https://claude.ai/*", "https://api.anthropic.com/*"],
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "options_ui": {
+    "page": "options.html",
+    "open_in_tab": true
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://claude.ai/*"],
+      "js": [
+        "lib/prism.js",
+        "lib/prism-typescript.js",
+        "lib/prism-javascript.js",
+        "lib/prism-python.js",
+        "lib/prism-json.js",
+        "lib/prism-markdown.js",
+        "content.js"
+      ],
+      "css": ["lib/prism.css", "styles.css"],
+      "run_at": "document_idle",
+      "type": "module"
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": ["styles.css"],
+      "matches": ["https://claude.ai/*"]
+    }
+  ]
+}
