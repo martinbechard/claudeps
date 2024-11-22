@@ -2,12 +2,9 @@
   position: fixed;
   top: 20px;
   left: 20px;
-  background: white;
-  border: 2px solid #666;
   border-radius: 8px;
   padding: 15px;
   z-index: 999999;
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
   width: 400px;
   min-width: 300px;
   min-height: 200px;
@@ -20,6 +17,23 @@
   box-sizing: border-box;
   transition: all 0.3s ease;
 }
+
+/* Light Theme (default) */
+.floating-window.light-theme {
+  background: white;
+  color: #333;
+  border: 2px solid #666;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+}
+
+/* Dark Theme */
+.floating-window.dark-theme {
+  background: #2d2d2d;
+  color: #e0e0e0;
+  border: 2px solid #444;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
+}
+
 .floating-window.minimized {
   min-width: unset;
   width: auto;
@@ -36,6 +50,7 @@
   display: none;
 }
 
+/* Status styles */
 .status {
   font-weight: bold;
   margin-bottom: 10px;
@@ -43,26 +58,40 @@
   justify-content: space-between;
   align-items: center;
   padding: 5px;
-  background: #f5f5f5;
   border-radius: 4px;
   cursor: move;
   flex-shrink: 0;
   user-select: none;
 }
 
+.light-theme .status {
+  background: #f5f5f5;
+}
+
+.dark-theme .status {
+  background: #3d3d3d;
+}
+
 .status.ready {
-  color: #008000;
+  color: #00c853;
 }
 .status.working {
-  color: #cc0000;
+  color: #ff5252;
 }
 .status.error {
-  color: #ff6600;
+  color: #ff9100;
 }
 
 .status-label {
   font-weight: bold;
+}
+
+.light-theme .status-label {
   color: #333;
+}
+
+.dark-theme .status-label {
+  color: #e0e0e0;
 }
 
 .input-container {
@@ -82,7 +111,6 @@
 
 #scriptText {
   padding: 8px;
-  border: 1px solid #ccc;
   border-radius: 4px;
   font-size: 14px;
   font-family: monospace;
@@ -90,6 +118,18 @@
   width: 100%;
   height: 100%;
   box-sizing: border-box;
+}
+
+.light-theme #scriptText {
+  background: white;
+  color: #333;
+  border: 1px solid #ccc;
+}
+
+.dark-theme #scriptText {
+  background: #1e1e1e;
+  color: #e0e0e0;
+  border: 1px solid #444;
 }
 
 .resize-handle {
@@ -111,8 +151,15 @@
   transform: translate(-50%, -50%);
   width: 30px;
   height: 4px;
-  background: #ccc;
   border-radius: 2px;
+}
+
+.light-theme .resize-handle:hover::after {
+  background: #ccc;
+}
+
+.dark-theme .resize-handle:hover::after {
+  background: #666;
 }
 
 #runScript {
@@ -128,6 +175,7 @@
 #runScript:hover {
   background: #0052a3;
 }
+
 #runScript:disabled {
   background: #cccccc;
 }
@@ -143,10 +191,8 @@
 }
 
 #scriptOutput {
-  border: 1px solid #ccc;
   border-radius: 4px;
   padding: 8px;
-  background: #f8f8f8;
   font-size: 12px;
   line-height: 1.4;
   flex-grow: 1;
@@ -156,7 +202,21 @@
   max-height: calc(100vh - 200px);
 }
 
-/* Export button styles */
+.light-theme #scriptOutput {
+  background: #f8f8f8;
+  color: #333;
+  border: 1px solid #ccc;
+}
+
+.dark-theme #scriptOutput {
+  background: #1e1e1e;
+  color: #e0e0e0;
+  border: 1px solid #444;
+}
+
+/* Button styles */
+.command-button,
+.simple-button,
 .export-button {
   padding: 8px 16px;
   background: #0066cc;
@@ -165,41 +225,12 @@
   border-radius: 4px;
   cursor: pointer;
   font-size: 14px;
-  margin-top: 10px;
-}
-
-.export-button:hover {
-  background: #0052a3;
-}
-
-#minimizeButton {
-  cursor: pointer;
-  border: none;
-  background: none;
-  color: #666;
-  font-size: 16px;
-  line-height: 1;
-  padding: 2px 8px;
-  border-radius: 4px;
-}
-
-#minimizeButton:hover {
-  background: #f0f0f0;
-}
-
-.simple-button {
-  padding: 8px 16px;
-  background: #0066cc;
-  color: white;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 14px;
-  flex: 1;
   transition: background-color 0.2s ease;
 }
 
-.simple-button:hover {
+.command-button:hover,
+.simple-button:hover,
+.export-button:hover {
   background: #0052a3;
 }
 
@@ -207,34 +238,35 @@
   padding: 10px;
 }
 
-.command-button {
-  padding: 8px 16px;
-  background: #0066cc;
-  color: white;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  flex: 1;
-  transition: background-color 0.2s ease;
-}
-
-.command-button:hover {
-  background: #0052a3;
-}
-
+#minimizeButton,
 #modeToggleButton {
   cursor: pointer;
   border: none;
   background: none;
-  color: #666;
   font-size: 16px;
   line-height: 1;
   padding: 2px 8px;
   border-radius: 4px;
 }
 
-#modeToggleButton:hover {
+.light-theme #minimizeButton,
+.light-theme #modeToggleButton {
+  color: #666;
+}
+
+.dark-theme #minimizeButton,
+.dark-theme #modeToggleButton {
+  color: #ccc;
+}
+
+.light-theme #minimizeButton:hover,
+.light-theme #modeToggleButton:hover {
   background: #f0f0f0;
+}
+
+.dark-theme #minimizeButton:hover,
+.dark-theme #modeToggleButton:hover {
+  background: #3d3d3d;
 }
 
 /* Project search styles */
@@ -247,10 +279,21 @@
 .project-search-input {
   width: 100%;
   padding: 8px 32px 8px 8px;
-  border: 1px solid #ccc;
   border-radius: 4px;
   font-size: 14px;
   box-sizing: border-box;
+}
+
+.light-theme .project-search-input {
+  background: white;
+  color: #333;
+  border: 1px solid #ccc;
+}
+
+.dark-theme .project-search-input {
+  background: #1e1e1e;
+  color: #e0e0e0;
+  border: 1px solid #444;
 }
 
 .project-search-glyph {
@@ -258,12 +301,19 @@
   right: 8px;
   top: 8px;
   cursor: pointer;
-  color: #666;
   background: none;
   border: none;
   padding: 4px;
   font-size: 16px;
   line-height: 1;
+}
+
+.light-theme .project-search-glyph {
+  color: #666;
+}
+
+.dark-theme .project-search-glyph {
+  color: #ccc;
 }
 
 .project-search-glyph:hover {

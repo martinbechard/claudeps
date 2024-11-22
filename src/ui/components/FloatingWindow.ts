@@ -7,6 +7,7 @@
 
 import type { FloatingWindowElements } from "../../types";
 import { WindowStateService } from "../../services/WindowStateService";
+import { SettingsService } from "../../services/SettingsService";
 import { HelpManager } from "./HelpManager";
 import { UIStateManager } from "./UIStateManager";
 
@@ -21,16 +22,18 @@ export class FloatingWindow {
 
   private readonly template = `
     <div class="floating-window">
-      <div class="status ready">
-        <div style="display: flex; align-items: center; gap: 5px; flex-grow: 1;">
+      <div class="status ready" style="display: flex; justify-content: space-between; align-items: center;">
+        <div style="display: flex; align-items: center; gap: 5px;">
           <span class="status-label">ClaudePS - </span>
           <span class="status-text">READY</span>
           <span class="status-details"></span>
         </div>
-        <button id="minimizeButton" style="font-size: 12px; padding: 2px 8px;">_</button>
-        <button id="modeToggleButton" title="Switch to Script Mode" style="font-size: 12px; padding: 2px 8px;">📝</button>
-        <button id="starredButton" title="View Starred Messages" style="font-size: 12px; padding: 2px 8px;">★</button>
-        <button id="helpButton" style="font-size: 12px; padding: 2px 8px;">?</button>
+        <div style="display: flex; gap: 5px;">
+          <button id="minimizeButton" style="font-size: 12px; padding: 2px 8px;">_</button>
+          <button id="modeToggleButton" title="Switch to Script Mode" style="font-size: 12px; padding: 2px 8px;">📝</button>
+          <button id="starredButton" title="View Starred Messages" style="font-size: 12px; padding: 2px 8px;">★</button>
+          <button id="helpButton" style="font-size: 12px; padding: 2px 8px;">?</button>
+        </div>
       </div>
       <div class="input-container">
         <div class="script-mode" style="display: none;">
@@ -57,6 +60,7 @@ Your prompt here"></textarea>
             <button class="command-button project-button" data-command="/project">Project</button>
             <button class="command-button" data-command="/conversation">Conversation</button>
             <button class="command-button" data-command="/artifacts">Artifacts</button>
+            <button class="command-button" data-command="/knowledge">Knowledge</button>
           </div>
           <div class="project-search-container">
             <input type="text" class="project-search-input" placeholder="Enter search criteria..." />
@@ -103,7 +107,37 @@ Your prompt here"></textarea>
     // Set up resize functionality
     this.setupResizeHandles();
 
+    // Apply theme
+    await this.applyTheme();
+
+    // Listen for theme changes from options page
+    chrome.runtime.onMessage.addListener((message) => {
+      if (message.type === "theme_changed") {
+        this.applyThemeClass(message.theme);
+      }
+    });
+
     return this.element;
+  }
+
+  /**
+   * Applies the saved theme or default theme
+   */
+  private async applyTheme(): Promise<void> {
+    if (!this.element) return;
+    const theme = (await SettingsService.getSetting("theme")) as
+      | "light"
+      | "dark";
+    this.applyThemeClass(theme);
+  }
+
+  /**
+   * Applies the theme class to the window
+   */
+  private applyThemeClass(theme: "light" | "dark"): void {
+    if (!this.element) return;
+    this.element.classList.remove("light-theme", "dark-theme");
+    this.element.classList.add(`${theme}-theme`);
   }
 
   /**

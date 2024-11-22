@@ -10,6 +10,8 @@ import { ChromeSettingsService } from "./ChromeSettingsService";
 export interface Settings {
   anthropicApiKey?: string;
   model?: string;
+  theme?: "light" | "dark";
+  enableAnthropicApi?: boolean;
 }
 
 /**
@@ -18,6 +20,8 @@ export interface Settings {
 export class SettingsService {
   private static readonly STORAGE_KEY = "anthropic_api_settings";
   private static readonly DEFAULT_MODEL = "claude-3-5-sonnet-20241022";
+  private static readonly DEFAULT_THEME = "light" as const;
+  private static readonly DEFAULT_ENABLE_ANTHROPIC = false;
 
   /**
    * Gets all settings from storage
@@ -32,9 +36,9 @@ export class SettingsService {
   /**
    * Sets a setting value in storage
    */
-  public static async setSetting(
-    key: keyof Settings,
-    value: string
+  public static async setSetting<K extends keyof Settings>(
+    key: K,
+    value: Settings[K]
   ): Promise<void> {
     const settings = await this.getSettings();
     settings[key] = value;
@@ -46,8 +50,14 @@ export class SettingsService {
    */
   public static async getSetting(
     key: keyof Settings
-  ): Promise<string | undefined> {
+  ): Promise<string | boolean | undefined> {
     const settings = await this.getSettings();
+    if (key === "theme") {
+      return settings[key] || this.DEFAULT_THEME;
+    }
+    if (key === "enableAnthropicApi") {
+      return settings[key] ?? this.DEFAULT_ENABLE_ANTHROPIC;
+    }
     return settings[key] || (key === "model" ? this.DEFAULT_MODEL : undefined);
   }
 
@@ -56,9 +66,6 @@ export class SettingsService {
    * @returns Error message if invalid, null if valid
    */
   public static validateApiKey(key: string): string | null {
-    if (!key) {
-      return "API key is required";
-    }
     if (!key.startsWith("sk-ant-")) {
       return 'Invalid API key format. Must start with "sk-ant-"';
     }
@@ -83,6 +90,20 @@ export class SettingsService {
   }
 
   /**
+   * Validates a theme value
+   * @returns Error message if invalid, null if valid
+   */
+  public static validateTheme(theme: string): string | null {
+    if (!theme) {
+      return "Theme is required";
+    }
+    if (theme !== "light" && theme !== "dark") {
+      return "Theme must be either 'light' or 'dark'";
+    }
+    return null;
+  }
+
+  /**
    * Validates that required settings are configured
    */
   public static async validateSettings(): Promise<{
@@ -90,6 +111,10 @@ export class SettingsService {
     message?: string;
   }> {
     const settings = await this.getSettings();
+
+    if (!settings.enableAnthropicApi) {
+      return { valid: true };
+    }
 
     if (!settings.anthropicApiKey) {
       return {

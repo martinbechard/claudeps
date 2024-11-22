@@ -29,7 +29,7 @@ import {
   parseArtifactsCommand,
 } from "./commands/parseContentCommands";
 import { splitTextWithQuotes } from "./splitText";
-import { parseDocsCommand } from "./commands/parseDocsCommand";
+import { parseKnowledgeCommand } from "./commands/parseKnowledgeCommand";
 
 export class ScriptParser {
   private static readonly COMMAND_PREFIX = "/";
@@ -157,8 +157,8 @@ export class ScriptParser {
         return parseConversationCommand(parsed);
       case "artifacts":
         return parseArtifactsCommand(parsed);
-      case "docs":
-        return parseDocsCommand(parsed);
+      case "knowledge":
+        return parseKnowledgeCommand(parsed);
       case "prompt": {
         const statement = this.parsePromptStatement(parsed.prompt);
         const stopIfCondition = parsed?.options?.["stop_if"];

@@ -6,6 +6,7 @@
  */
 
 import { DraggableManager } from "./DraggableManager";
+import { ThemeManager, ThemeColors } from "../theme";
 
 declare global {
   interface Window {
@@ -19,26 +20,19 @@ declare global {
   }
 }
 
-const styles = {
-  colors: {
-    primary: "#0066cc",
-    border: "#ccc",
-    text: "#333",
-    background: "#fff",
-    codeBg: "#f5f5f5",
-  },
-  spacing: {
-    sm: "8px",
-    md: "16px",
-    lg: "24px",
-  },
-  borderRadius: "8px",
-  fontSize: {
-    sm: "14px",
-    md: "16px",
-    lg: "18px",
-  },
+const spacing = {
+  sm: "8px",
+  md: "16px",
+  lg: "24px",
 };
+
+const fontSize = {
+  sm: "14px",
+  md: "16px",
+  lg: "18px",
+};
+
+const borderRadius = "8px";
 
 export class ContentPreview {
   private readonly dialog: HTMLElement;
@@ -46,20 +40,51 @@ export class ContentPreview {
   private readonly header: HTMLElement;
   private isOpen: boolean = false;
   private draggableManager: DraggableManager;
-  private static baseZIndex: number = 1000003; // Match ConversationPreview's z-index
+  private static baseZIndex: number = 1000003;
   private static windowCount: number = 0;
+  private colors: ThemeColors;
+  private markdownStyle: HTMLStyleElement | null = null;
+  private closeButton: HTMLButtonElement | null = null;
 
   constructor() {
-    // Initialize elements in constructor
+    this.colors = ThemeManager.getColors();
     this.dialog = document.createElement("div");
     this.content = document.createElement("div");
     this.header = document.createElement("div");
     this.createDialog();
     this.draggableManager = new DraggableManager(this.dialog, this.header);
+
+    // Listen for theme changes
+    ThemeManager.addThemeChangeListener(() => {
+      this.colors = ThemeManager.getColors();
+      this.updateTheme();
+    });
+  }
+
+  private updateTheme(): void {
+    if (!this.isOpen) return;
+
+    this.content.style.background = this.colors.background;
+    this.header.style.borderBottom = `1px solid ${this.colors.border}`;
+
+    // Update markdown styles if they exist
+    if (this.markdownStyle) {
+      this.markdownStyle.textContent = this.getMarkdownStyles();
+    }
+
+    // Update any code blocks
+    const codeContainer = this.content.querySelector('[class*="language-"]');
+    if (codeContainer) {
+      (codeContainer as HTMLElement).style.background = this.colors.codeBg;
+    }
+
+    // Update close button
+    if (this.closeButton) {
+      this.closeButton.style.color = this.colors.text;
+    }
   }
 
   private createDialog(): void {
-    // Create container
     this.dialog.style.cssText = `
         position: fixed;
         top: 50%;
@@ -72,10 +97,9 @@ export class ContentPreview {
         display: none;
       `;
 
-    // Create content container
     this.content.style.cssText = `
-        background: ${styles.colors.background};
-        border-radius: ${styles.borderRadius};
+        background: ${this.colors.background};
+        border-radius: ${borderRadius};
         width: 100%;
         height: 100%;
         display: flex;
@@ -84,17 +108,15 @@ export class ContentPreview {
         position: relative;
       `;
 
-    // Create header for dragging
     this.header.style.cssText = `
-        padding: ${styles.spacing.md};
-        border-bottom: 1px solid ${styles.colors.border};
+        padding: ${spacing.md};
+        border-bottom: 1px solid ${this.colors.border};
         cursor: move;
       `;
 
     this.dialog.appendChild(this.content);
     document.body.appendChild(this.dialog);
 
-    // Close on escape key
     document.addEventListener("keydown", (e) => {
       if (e.key === "Escape" && this.isOpen) {
         this.close();
@@ -104,7 +126,6 @@ export class ContentPreview {
 
   private getLanguageFromFileName(fileName: string): string {
     const parts = fileName.split(".");
-    // If there's no extension, treat as markdown
     if (parts.length === 1) {
       return "markdown";
     }
@@ -134,7 +155,7 @@ export class ContentPreview {
       sql: "sql",
       sh: "bash",
       bash: "bash",
-      txf: "markdown", // Added .txf as markdown
+      txf: "markdown",
     };
     return languageMap[ext] || "plaintext";
   }
@@ -144,20 +165,20 @@ export class ContentPreview {
     button.innerHTML = "×";
     button.style.cssText = `
         position: absolute;
-        top: ${styles.spacing.sm};
-        right: ${styles.spacing.sm};
-        font-size: ${styles.fontSize.lg};
+        top: ${spacing.sm};
+        right: ${spacing.sm};
+        font-size: ${fontSize.lg};
         border: none;
         background: none;
-        color: ${styles.colors.text};
+        color: ${this.colors.text};
         cursor: pointer;
-        padding: ${styles.spacing.sm};
+        padding: ${spacing.sm};
         border-radius: 4px;
         z-index: 1;
       `;
 
     button.addEventListener("mouseover", () => {
-      button.style.backgroundColor = styles.colors.codeBg;
+      button.style.backgroundColor = this.colors.hoverBg;
     });
 
     button.addEventListener("mouseout", () => {
@@ -170,121 +191,109 @@ export class ContentPreview {
 
   private calculateWindowPosition(): { top: number; left: number } {
     const gap = 20;
-    const windowWidth = 800; // Width of our dialog
-    const windowHeight = Math.min(window.innerHeight * 0.8, 600); // Max height of our dialog
+    const windowWidth = 800;
+    const windowHeight = Math.min(window.innerHeight * 0.8, 600);
 
-    // Get all existing preview windows
     const existingWindows = document.querySelectorAll("[data-preview-window]");
 
     if (existingWindows.length === 0) {
-      // First window - center it
       return {
         top: (window.innerHeight - windowHeight) / 2,
         left: (window.innerWidth - windowWidth) / 2,
       };
     }
 
-    // Get the last window's position
     const lastWindow = existingWindows[
       existingWindows.length - 1
     ] as HTMLElement;
     const lastRect = lastWindow.getBoundingClientRect();
 
-    // Try positioning to the right
     let left = lastRect.right + gap;
     let top = lastRect.top;
 
-    // If positioning to the right would put the window off screen
     if (left + windowWidth > window.innerWidth) {
-      // Position below the first window instead, back at the left side
       const firstWindow = existingWindows[0] as HTMLElement;
       const firstRect = firstWindow.getBoundingClientRect();
       left = firstRect.left;
       top = lastRect.bottom + gap;
 
-      // If positioning below would put the window off screen
       if (top + windowHeight > window.innerHeight) {
-        // Start a new column at the top, slightly offset from the first window
         top = firstRect.top + gap;
         left = firstRect.left + gap;
       }
     }
 
-    // Ensure we don't position off screen
     left = Math.max(gap, Math.min(left, window.innerWidth - windowWidth - gap));
     top = Math.max(gap, Math.min(top, window.innerHeight - windowHeight - gap));
 
     return { top, left };
   }
 
+  private getMarkdownStyles(): string {
+    return `
+      .content-preview-markdown h1, 
+      .content-preview-markdown h2, 
+      .content-preview-markdown h3 { margin-top: 1.5em; margin-bottom: 0.5em; color: ${this.colors.text}; }
+      .content-preview-markdown p { margin: 1em 0; color: ${this.colors.text}; }
+      .content-preview-markdown code { background: ${this.colors.codeBg}; padding: 0.2em 0.4em; border-radius: 3px; color: ${this.colors.text}; }
+      .content-preview-markdown pre { background: ${this.colors.codeBg}; padding: 1em; border-radius: 5px; overflow-x: auto; }
+      .content-preview-markdown pre code { background: none; padding: 0; }
+      .content-preview-markdown ul, .content-preview-markdown ol { padding-left: 2em; color: ${this.colors.text}; }
+      .content-preview-markdown blockquote { border-left: 4px solid ${this.colors.border}; margin: 0; padding-left: 1em; color: ${this.colors.text}; }
+      .content-preview-markdown table { border-collapse: collapse; width: 100%; }
+      .content-preview-markdown th, .content-preview-markdown td { border: 1px solid ${this.colors.border}; padding: 8px; text-align: left; color: ${this.colors.text}; }
+      .content-preview-markdown th { background-color: ${this.colors.codeBg}; }
+    `;
+  }
+
   public show(title: string, content: string, fileName: string): void {
-    // Reset content
     this.content.innerHTML = "";
 
-    // Update header
     this.header.innerHTML = "";
     const titleElement = document.createElement("h2");
     titleElement.style.cssText = `
         margin: 0;
-        font-size: ${styles.fontSize.lg};
+        font-size: ${fontSize.lg};
         font-weight: 600;
-        color: ${styles.colors.text};
+        color: ${this.colors.text};
       `;
     titleElement.textContent = title;
     this.header.appendChild(titleElement);
 
-    // Create content container
     const contentContainer = document.createElement("div");
     contentContainer.style.cssText = `
-        padding: ${styles.spacing.md};
+        padding: ${spacing.md};
         overflow-y: auto;
         flex: 1;
         min-height: 200px;
         max-height: calc(80vh - 100px);
-        font-size: ${styles.fontSize.sm};
+        font-size: ${fontSize.sm};
         line-height: 1.5;
+        color: ${this.colors.text};
       `;
 
     const language = this.getLanguageFromFileName(fileName);
 
-    // Handle markdown files
     if (language === "markdown") {
       contentContainer.style.fontFamily =
         "system-ui, -apple-system, sans-serif";
-      contentContainer.style.background = styles.colors.background;
+      contentContainer.style.background = this.colors.background;
       contentContainer.style.whiteSpace = "normal";
 
       if (window.marked) {
         contentContainer.innerHTML = window.marked.parse(content);
       } else {
-        // Fallback if marked isn't available
         contentContainer.textContent = content;
         console.warn("Marked library not available for markdown parsing");
       }
 
-      // Add styles for markdown content
-      const style = document.createElement("style");
-      style.textContent = `
-        .content-preview-markdown h1, 
-        .content-preview-markdown h2, 
-        .content-preview-markdown h3 { margin-top: 1.5em; margin-bottom: 0.5em; }
-        .content-preview-markdown p { margin: 1em 0; }
-        .content-preview-markdown code { background: ${styles.colors.codeBg}; padding: 0.2em 0.4em; border-radius: 3px; }
-        .content-preview-markdown pre { background: ${styles.colors.codeBg}; padding: 1em; border-radius: 5px; overflow-x: auto; }
-        .content-preview-markdown pre code { background: none; padding: 0; }
-        .content-preview-markdown ul, .content-preview-markdown ol { padding-left: 2em; }
-        .content-preview-markdown blockquote { border-left: 4px solid ${styles.colors.border}; margin: 0; padding-left: 1em; }
-        .content-preview-markdown table { border-collapse: collapse; width: 100%; }
-        .content-preview-markdown th, .content-preview-markdown td { border: 1px solid ${styles.colors.border}; padding: 8px; text-align: left; }
-        .content-preview-markdown th { background-color: ${styles.colors.codeBg}; }
-      `;
+      this.markdownStyle = document.createElement("style");
+      this.markdownStyle.textContent = this.getMarkdownStyles();
       contentContainer.classList.add("content-preview-markdown");
-      document.head.appendChild(style);
-    }
-    // Handle code files
-    else {
+      document.head.appendChild(this.markdownStyle);
+    } else {
       contentContainer.style.fontFamily = "monospace";
-      contentContainer.style.background = styles.colors.codeBg;
+      contentContainer.style.background = this.colors.codeBg;
       contentContainer.style.whiteSpace = "pre";
 
       if (language !== "plaintext") {
@@ -303,30 +312,24 @@ export class ContentPreview {
       }
     }
 
-    // Add close button
-    const closeButton = this.createCloseButton();
+    this.closeButton = this.createCloseButton();
 
-    // Assemble dialog
-    this.content.appendChild(closeButton);
+    this.content.appendChild(this.closeButton);
     this.content.appendChild(this.header);
     this.content.appendChild(contentContainer);
 
-    // Position window
     const position = this.calculateWindowPosition();
     this.dialog.style.transform = "none";
     this.dialog.style.top = `${position.top}px`;
     this.dialog.style.left = `${position.left}px`;
 
-    // Increment window count and update z-index
     ContentPreview.windowCount++;
     this.dialog.style.zIndex = `${
       ContentPreview.baseZIndex + ContentPreview.windowCount
     }`;
 
-    // Add identifier for window positioning
     this.dialog.setAttribute("data-preview-window", "");
 
-    // Show dialog with animation
     this.dialog.style.display = "block";
     this.dialog.style.opacity = "0";
     setTimeout(() => {
@@ -345,12 +348,21 @@ export class ContentPreview {
       this.dialog.style.display = "none";
       this.content.innerHTML = "";
       ContentPreview.windowCount--;
+      if (this.markdownStyle) {
+        this.markdownStyle.remove();
+        this.markdownStyle = null;
+      }
+      this.closeButton = null;
     }, 200);
 
     this.isOpen = false;
   }
 
   public destroy(): void {
+    ThemeManager.removeThemeChangeListener(this.updateTheme.bind(this));
+    if (this.markdownStyle) {
+      this.markdownStyle.remove();
+    }
     this.draggableManager.destroy();
     this.dialog.remove();
   }

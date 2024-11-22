@@ -49,8 +49,8 @@ export class ScriptRunner {
     }
 
     switch (script.command) {
-      case "docs":
-        await this.commandExecutor.handleDocsCommand();
+      case "knowledge":
+        await this.commandExecutor.handleKnowledgeCommand();
         break;
       case "project":
         await this.commandExecutor.handleProjectCommand();

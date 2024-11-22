@@ -58,6 +58,15 @@ export class AnthropicService {
     console.log("[AnthropicService] Starting API request");
 
     try {
+      const enableApi = await SettingsService.getSetting("enableAnthropicApi");
+      if (!enableApi) {
+        console.log("[AnthropicService] Anthropic API is disabled");
+        return {
+          success: false,
+          error: "Anthropic API is disabled in settings",
+        };
+      }
+
       const settings = await SettingsService.validateSettings();
       if (!settings.valid) {
         console.log("[AnthropicService] Invalid settings:", settings.message);

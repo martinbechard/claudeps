@@ -83,7 +83,7 @@ export const COMMAND_MAP: { [key: string]: BaseCommandInfo } = {
   },
 
   // Project commands with no options
-  docs: { full: "docs", abbreviation: "d" },
+  knowledge: { full: "knowledge", abbreviation: "k" },
   project: { full: "project", abbreviation: "p" },
   search_project: { full: "search_project", abbreviation: "sp" },
   query_project: { full: "query_project", abbreviation: "qp" },

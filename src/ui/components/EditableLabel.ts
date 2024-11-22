@@ -1,3 +1,5 @@
+import { ThemeManager } from "../theme";
+
 export class EditableLabel {
   private container: HTMLElement;
   private labelText: HTMLElement;
@@ -24,9 +26,12 @@ export class EditableLabel {
   }
 
   private updateLabelText(label: string): void {
+    const colors = ThemeManager.getColors();
+
+    // Apply initial styles
     this.labelText.style.cssText = `
       font-size: 12px;
-      color: #666;
+      color: ${colors.text};
       cursor: pointer;
       padding: 2px 4px;
       border-radius: 4px;
@@ -40,9 +45,17 @@ export class EditableLabel {
     this.labelText.parentNode?.replaceChild(newLabel, this.labelText);
     this.labelText = newLabel;
 
-    // Add new event listeners
+    // Add theme change listener
+    const updateStyles = () => {
+      const colors = ThemeManager.getColors();
+      this.labelText.style.color = colors.text;
+    };
+    ThemeManager.addThemeChangeListener(updateStyles);
+
+    // Add hover events
     this.labelText.addEventListener("mouseover", () => {
-      this.labelText.style.backgroundColor = "#f0f0f0";
+      const colors = ThemeManager.getColors();
+      this.labelText.style.backgroundColor = colors.headerBg;
     });
     this.labelText.addEventListener("mouseout", () => {
       this.labelText.style.backgroundColor = "transparent";
@@ -61,11 +74,12 @@ export class EditableLabel {
       .StarService;
     this.existingLabels = await StarService.getAllLabels();
 
+    const colors = ThemeManager.getColors();
     this.editor = document.createElement("div");
     this.editor.style.cssText = `
       position: absolute;
-      background: white;
-      border: 1px solid #ccc;
+      background: ${colors.background};
+      border: 1px solid ${colors.border};
       border-radius: 4px;
       box-shadow: 0 2px 8px rgba(0,0,0,0.1);
       z-index: 1000004;
@@ -79,9 +93,11 @@ export class EditableLabel {
       width: 150px;
       padding: 4px 8px;
       border: none;
-      border-bottom: 1px solid #eee;
+      border-bottom: 1px solid ${colors.border};
       outline: none;
       font-size: 12px;
+      color: ${colors.text};
+      background: ${colors.background};
     `;
     this.editor.appendChild(input);
 
@@ -92,18 +108,38 @@ export class EditableLabel {
       overflow-y: auto;
     `;
 
+    // Add theme change listener for editor
+    const updateEditorStyles = () => {
+      const colors = ThemeManager.getColors();
+      this.editor!.style.background = colors.background;
+      this.editor!.style.borderColor = colors.border;
+      input.style.color = colors.text;
+      input.style.background = colors.background;
+      input.style.borderBottomColor = colors.border;
+    };
+    ThemeManager.addThemeChangeListener(updateEditorStyles);
+
     this.existingLabels.forEach((label) => {
       const labelOption = document.createElement("div");
-      labelOption.style.cssText = `
-        padding: 4px 8px;
-        cursor: pointer;
-        font-size: 12px;
-        transition: background-color 0.2s;
-      `;
+      // Apply initial styles
+      const updateLabelOptionStyles = () => {
+        const colors = ThemeManager.getColors();
+        labelOption.style.cssText = `
+          padding: 4px 8px;
+          cursor: pointer;
+          font-size: 12px;
+          transition: background-color 0.2s;
+          color: ${colors.text};
+        `;
+      };
+      updateLabelOptionStyles();
+      ThemeManager.addThemeChangeListener(updateLabelOptionStyles);
+
       labelOption.textContent = label;
 
       labelOption.addEventListener("mouseover", () => {
-        labelOption.style.backgroundColor = "#f0f0f0";
+        const colors = ThemeManager.getColors();
+        labelOption.style.backgroundColor = colors.headerBg;
       });
       labelOption.addEventListener("mouseout", () => {
         labelOption.style.backgroundColor = "transparent";

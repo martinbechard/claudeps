@@ -44,9 +44,9 @@ export class CommandExecutor {
   }
 
   /**
-   * Handles the /docs command execution
+   * Handles the /knowledge command execution
    */
-  public async handleDocsCommand(): Promise<void> {
+  public async handleKnowledgeCommand(): Promise<void> {
     try {
       this.outputElement.innerHTML = "";
       this.handleLog("Fetching documents...");

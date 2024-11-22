@@ -16,6 +16,7 @@ import { ScriptExecutionManager } from "./services/ScriptExecutionManager";
 import { HelpManager } from "./ui/components/HelpManager";
 import { StarredItemsPreview } from "./ui/components/StarredItemsPreview";
 import { AliasService } from "./services/AliasService";
+import { ThemeManager } from "./ui/theme";
 import type { FloatingWindowElements, StatusElements } from "./types";
 
 export class ClaudeExtension {
@@ -35,7 +36,10 @@ export class ClaudeExtension {
     console.log("Initializing UI components...");
 
     try {
-      // Initialize AliasService first
+      // Initialize theme first
+      await ThemeManager.initialize();
+
+      // Initialize AliasService
       AliasService.initialize();
 
       // Create UI components

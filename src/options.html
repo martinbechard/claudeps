@@ -3,14 +3,7 @@
   <head>
     <title>Claude Extension Settings</title>
     <!-- Prism CSS -->
-    <link
-      href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism.min.css"
-      rel="stylesheet"
-    />
-    <link
-      href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/line-numbers/prism-line-numbers.min.css"
-      rel="stylesheet"
-    />
+    <link href="lib/prism.css" rel="stylesheet" />
     <style>
       body {
         padding: 20px;
@@ -28,12 +21,22 @@
         margin-bottom: 5px;
         font-weight: 500;
       }
-      input[type="text"] {
+      input[type="text"],
+      select {
         width: 100%;
         padding: 8px;
         border: 1px solid #ccc;
         border-radius: 4px;
         font-size: 14px;
+      }
+      .toggle-group {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 20px;
+      }
+      .toggle-group label {
+        margin: 0;
       }
       .error {
         color: #dc3545;
@@ -105,24 +108,36 @@
     <div class="container">
       <h1>Claude Extension Settings</h1>
       <form id="settingsForm">
-        <div class="form-group">
+        <div class="toggle-group">
+          <input type="checkbox" id="enableAnthropicApi" />
+          <label for="enableAnthropicApi">Enable Anthropic API</label>
+        </div>
+        <div class="form-group" id="apiKeyGroup">
           <label for="apiKey">Anthropic API Key</label>
-          <input type="text" id="apiKey" placeholder="sk-ant-..." required />
+          <input type="text" id="apiKey" placeholder="sk-ant-..." />
           <div class="error" id="apiKeyError"></div>
           <div class="success" id="apiKeySuccess"></div>
           <div class="status" id="apiKeyStatus"></div>
         </div>
-        <div class="form-group">
+        <div class="form-group" id="modelGroup">
           <label for="model">Claude Model</label>
           <input
             type="text"
             id="model"
             placeholder="claude-3-5-sonnet-20241022"
             value="claude-3-5-sonnet-20241022"
-            required
           />
           <div class="error" id="modelError"></div>
           <div class="success" id="modelSuccess"></div>
+        </div>
+        <div class="form-group">
+          <label for="theme">Theme</label>
+          <select id="theme" required>
+            <option value="light">Light</option>
+            <option value="dark">Dark</option>
+          </select>
+          <div class="error" id="themeError"></div>
+          <div class="success" id="themeSuccess"></div>
         </div>
         <div class="button-group">
           <button type="submit">Save</button>
@@ -130,12 +145,14 @@
         </div>
       </form>
     </div>
-    <!-- Marked.js -->
-    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-    <!-- Prism JS -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-core.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/autoloader/prism-autoloader.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/line-numbers/prism-line-numbers.min.js"></script>
+    <!-- Local scripts -->
+    <script src="lib/marked.js"></script>
+    <script src="lib/prism.js"></script>
+    <script src="lib/prism-typescript.js"></script>
+    <script src="lib/prism-javascript.js"></script>
+    <script src="lib/prism-python.js"></script>
+    <script src="lib/prism-json.js"></script>
+    <script src="lib/prism-markdown.js"></script>
     <!-- App JS -->
     <script src="options.js"></script>
   </body>
