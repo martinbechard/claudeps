@@ -8,6 +8,8 @@
  * Note: Remembering your window preferences, so you don't have to!
  */
 
+import { StorageService } from "./StorageService";
+
 interface WindowGeometry {
   x: number;
   y: number;
@@ -35,82 +37,116 @@ export class WindowStateService {
   /**
    * Loads the saved window state from storage
    */
-  public static loadState(): WindowGeometry {
+  public static async loadState(): Promise<WindowGeometry> {
     try {
-      const savedState = localStorage.getItem(this.STORAGE_KEY);
-      if (savedState) {
-        return JSON.parse(savedState);
-      }
+      const savedState = undefined; /* await StorageService.get<WindowGeometry>(
+        this.STORAGE_KEY
+      );*/
+      return savedState || { ...this.DEFAULT_STATE };
     } catch (error) {
       console.error("Failed to load window state:", error);
+      return { ...this.DEFAULT_STATE };
     }
-    return { ...this.DEFAULT_STATE };
   }
 
   /**
    * Saves the current window state to storage
    */
-  public static saveState(state: Partial<WindowGeometry>): void {
+  public static async saveState(state: Partial<WindowGeometry>): Promise<void> {
     try {
-      const currentState = this.loadState();
+      const currentState = await this.loadState();
       const newState = { ...currentState, ...state };
-      localStorage.setItem(this.STORAGE_KEY, JSON.stringify(newState));
+      await StorageService.set(this.STORAGE_KEY, newState);
     } catch (error) {
       console.error("Failed to save window state:", error);
     }
   }
 
-  public static saveMode(isScriptMode: boolean): void {
-    this.saveState({ isScriptMode });
+  public static async saveMode(isScriptMode: boolean): Promise<void> {
+    await this.saveState({ isScriptMode });
   }
 
   /**
    * Updates window position
    */
-  public static savePosition(x: number, y: number): void {
-    this.saveState({ x, y });
+  public static async savePosition(x: number, y: number): Promise<void> {
+    await this.saveState({ x, y });
   }
 
   /**
    * Updates window dimensions
    */
-  public static saveGeometry(width: string, height: string): void {
-    this.saveState({ width, height });
+  public static async saveGeometry(
+    width: string,
+    height: string
+  ): Promise<void> {
+    await this.saveState({ width, height });
   }
 
   /**
    * Updates script textarea height
    */
-  public static saveScriptHeight(height: string): void {
-    this.saveState({ scriptHeight: height });
+  public static async saveScriptHeight(height: string): Promise<void> {
+    await this.saveState({ scriptHeight: height });
   }
 
   /**
    * Updates window state flags
    */
-  public static saveWindowState(
+  public static async saveWindowState(
     isMinimized: boolean,
     isCollapsed: boolean
-  ): void {
-    this.saveState({ isMinimized, isCollapsed });
+  ): Promise<void> {
+    await this.saveState({ isMinimized, isCollapsed });
+  }
+
+  /**
+   * Ensures coordinates are within viewport bounds
+   */
+  private static constrainToViewport(
+    x: number,
+    y: number,
+    width: number,
+    height: number
+  ): { x: number; y: number } {
+    const viewportWidth =
+      window.innerWidth || document.documentElement.clientWidth;
+    const viewportHeight =
+      window.innerHeight || document.documentElement.clientHeight;
+
+    // Ensure at least 100px of the window is always visible
+    const minVisibleWidth = Math.min(width, 100);
+    const minVisibleHeight = Math.min(height, 100);
+
+    return {
+      x: Math.min(Math.max(0, x), viewportWidth - minVisibleWidth),
+      y: Math.min(Math.max(0, y), viewportHeight - minVisibleHeight),
+    };
   }
 
   /**
    * Applies saved state to window element
    */
-  public static applyState(
+  public static async applyState(
     windowElement: HTMLElement,
     scriptElement?: HTMLElement
-  ): void {
-    const state = this.loadState();
+  ): Promise<void> {
+    const state = await this.loadState();
 
     // Set absolute positioning
     windowElement.style.position = "absolute";
     windowElement.style.right = "auto"; // Clear any right positioning
 
-    // Always apply position, even when minimized
-    windowElement.style.left = `${state.x}px`;
-    windowElement.style.top = `${state.y}px`;
+    // Get window dimensions
+    const width = parseInt(state.width) || 400;
+    const height = parseInt(state.height) || 500;
+
+    // Constrain position to viewport
+    const { x, y } = this.constrainToViewport(state.x, state.y, width, height);
+
+    // Always apply constrained position, even when minimized
+    windowElement.style.left = `${x}px`;
+    windowElement.style.top = `${y}px`;
 
     // Apply dimensions if not minimized
     if (!state.isMinimized) {

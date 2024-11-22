@@ -4,7 +4,8 @@
   "description": "Chrome extension for Claude",
   "scripts": {
     "build": "webpack --mode=production",
-    "build:debug": "projectPackager.zsh && webpack --mode=development",
+    "build:debug": "webpack --mode=development",
+    "build:debugp": "projectPackager.zsh && webpack --mode=development",
     "watch:debug": "webpack --mode=development --watch",
     "analyze": "tsc $1 --outDir dist",
     "package": "./scripts/package-extension.sh"

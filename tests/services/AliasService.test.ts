@@ -10,69 +10,73 @@ import { AliasService } from "../../src/services/AliasService";
 import { MemoryStorage } from "../../src/types/storage";
 
 describe("AliasService", () => {
-  beforeEach(() => {
+  beforeEach(async () => {
     // Initialize with fresh MemoryStorage for each test
     AliasService.initialize(new MemoryStorage());
-    AliasService.clearAllAliases();
+    await AliasService.clearAllAliases();
   });
 
   describe("setAlias", () => {
-    it("should store a valid alias", () => {
-      AliasService.setAlias("test", "Hello World");
-      expect(AliasService.getAlias("test")).toBe("Hello World");
+    it("should store a valid alias", async () => {
+      await AliasService.setAlias("test", "Hello World");
+      const result = await AliasService.getAlias("test");
+      expect(result).toBe("Hello World");
     });
 
-    it("should throw error for invalid alias name", () => {
-      expect(() => AliasService.setAlias("test-invalid", "Hello")).toThrow(
-        "Invalid alias name"
-      );
+    it("should throw error for invalid alias name", async () => {
+      await expect(
+        AliasService.setAlias("test-invalid", "Hello")
+      ).rejects.toThrow("Invalid alias name");
     });
   });
 
   describe("deleteAlias", () => {
-    it("should delete existing alias", () => {
-      AliasService.setAlias("test", "Hello World");
-      expect(AliasService.deleteAlias("test")).toBe(true);
-      expect(AliasService.getAlias("test")).toBeUndefined();
+    it("should delete existing alias", async () => {
+      await AliasService.setAlias("test", "Hello World");
+      const deleted = await AliasService.deleteAlias("test");
+      expect(deleted).toBe(true);
+      const result = await AliasService.getAlias("test");
+      expect(result).toBeUndefined();
     });
 
-    it("should return false for non-existent alias", () => {
-      expect(AliasService.deleteAlias("nonexistent")).toBe(false);
+    it("should return false for non-existent alias", async () => {
+      const result = await AliasService.deleteAlias("nonexistent");
+      expect(result).toBe(false);
     });
   });
 
   describe("processText", () => {
-    beforeEach(() => {
-      AliasService.setAlias("hello", "Hello World");
-      AliasService.setAlias("nested", "@hello there");
+    beforeEach(async () => {
+      await AliasService.setAlias("hello", "Hello World");
+      await AliasService.setAlias("nested", "@hello there");
     });
 
-    it("should replace simple aliases", () => {
-      expect(AliasService.processText("@hello")).toBe("Hello World");
+    it("should replace simple aliases", async () => {
+      const result = await AliasService.processText("@hello");
+      expect(result).toBe("Hello World");
     });
 
-    it("should handle nested aliases", () => {
-      expect(AliasService.processText("@nested")).toBe("Hello World there");
+    it("should handle nested aliases", async () => {
+      const result = await AliasService.processText("@nested");
+      expect(result).toBe("Hello World there");
     });
 
-    it("should handle multiple aliases in text", () => {
-      expect(AliasService.processText("@hello @hello")).toBe(
-        "Hello World Hello World"
-      );
+    it("should handle multiple aliases in text", async () => {
+      const result = await AliasService.processText("@hello @hello");
+      expect(result).toBe("Hello World Hello World");
     });
 
-    it("should not replace partial matches", () => {
-      expect(AliasService.processText("email@hello.com")).toBe(
-        "email@hello.com"
-      );
+    it("should not replace partial matches", async () => {
+      const result = await AliasService.processText("email@hello.com");
+      expect(result).toBe("email@hello.com");
     });
   });
 
   describe("getAliasList", () => {
-    it("should return formatted list of aliases", () => {
-      AliasService.setAlias("test1", "Value 1");
-      AliasService.setAlias("test2", "Value 2");
-      const list = AliasService.getAliasList();
+    it("should return formatted list of aliases", async () => {
+      await AliasService.setAlias("test1", "Value 1");
+      await AliasService.setAlias("test2", "Value 2");
+      const list = await AliasService.getAliasList();
       expect(list).toContain("@test1: Value 1");
       expect(list).toContain("@test2: Value 2");
     });

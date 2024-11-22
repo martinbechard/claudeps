@@ -92,8 +92,7 @@ export class ProjectSearchService {
         try {
           const conv = await ConversationRetrieval.getConversation(
             orgId,
-            conversation.uuid,
-            true
+            conversation.uuid
           );
 
           // Define message filter callback
@@ -173,7 +172,7 @@ export class ProjectSearchService {
       // Get project conversations if not provided
       if (!conversations) {
         console.log("[ProjectSearchService] Fetching project conversations...");
-        conversations = await ProjectRetrieval.getProjectConversations(true);
+        conversations = await ProjectRetrieval.getProjectConversations();
       }
 
       // Initialize table with just headers, passing false to disable Cancel button
@@ -207,8 +206,7 @@ export class ProjectSearchService {
             // Get detailed conversation
             const conversation = await ConversationRetrieval.getConversation(
               orgId,
-              conv.uuid,
-              true
+              conv.uuid
             );
 
             // Check again for abort after conversation retrieval
@@ -235,7 +233,7 @@ export class ProjectSearchService {
               }));
 
             // Create search prompt for this conversation
-            const prompt = `Here is a conversation. Please find if it contains information satisfying this search criteria and output a SearchResultInfo object: 
+            const prompt = `Here is a conversation. Please find up to 5 relevant matches that satisfy this search criteria and output an array of SearchResultInfo objects: 
             <Criteria>${searchText}</Criteria>
 
 ${JSON.stringify(
@@ -248,15 +246,15 @@ ${JSON.stringify(
   2
 )}
 
-If the conversation matches, return a SearchResultInfo object with this TypeScript type:
+Return an array of SearchResultInfo objects with this TypeScript type:
 interface SearchResultInfo {
   conversationId: string;     // ID of the matching conversation
   messageId: string;          // UUID of the specific message that matches
-  matchReason: string;        // Clear explanation of why this conversation matches
+  matchReason: string;        // Clear explanation of why this message matches
   relevantSnippet: string;    // The specific text snippet that matches (max 200 chars)
 }
 
-If the conversation does not match, return null. Return ONLY the JSON object or null, with no additional text or explanation.`;
+If no matches are found, return an empty array. Return ONLY the JSON array, with no additional text or explanation.`;
 
             // Check for abort before making completion request
             if (signal.aborted) {
@@ -298,12 +296,12 @@ If the conversation does not match, return null. Return ONLY the JSON object or 
               );
 
               try {
-                const result = JSON.parse(responseText);
-                if (result && result.conversationId) {
-                  // Valid result found, update the table and select the row
-                  table.updateSearchResult(conv.uuid, result, undefined, true);
+                const results = JSON.parse(responseText);
+                if (Array.isArray(results) && results.length > 0) {
+                  // Valid results found, update the table and select the row
+                  table.updateSearchResult(conv.uuid, results, undefined, true);
                 } else {
-                  // No match, clear any existing result and don't select
+                  // No matches, clear any existing result and don't select
                   table.updateSearchResult(
                     conv.uuid,
                     undefined,

@@ -21,12 +21,12 @@ export function parseProjectCommand(
 }
 
 /**
- * Parses a project search command with optional search text
+ * Parses a project search command with optional search text and number of results
  */
 export function parseSearchProjectCommand(
   parsedCommandLine: ParsedCommandLine
 ): ScriptStatement {
-  const { prompt } = parsedCommandLine;
+  const { prompt, options } = parsedCommandLine;
 
   if (!prompt.trim()) {
     throw new Error("Search project command requires search text");
@@ -36,6 +36,9 @@ export function parseSearchProjectCommand(
     isCommand: true,
     command: "search_project",
     searchText: prompt.trim(),
+    options: {
+      numResults: options.numResults || "5", // Default to 5 results if not specified
+    },
   });
 }
 

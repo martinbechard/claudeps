@@ -399,7 +399,8 @@ export function createNameCell(
 export function createSearchResultCell(
   searchResult?: SearchResultInfo,
   error?: string,
-  preview?: SearchResultPreview
+  preview?: SearchResultPreview,
+  allResults?: SearchResultInfo[]
 ): HTMLTableCellElement {
   const cell = createTableCell();
 
@@ -538,7 +539,7 @@ export function createSearchResultCell(
 
   // Add click handler to show preview
   container.addEventListener("click", () => {
-    preview?.show(searchResult);
+    preview?.show(allResults || [searchResult]); // Use all results if available, otherwise wrap single result
   });
 
   // Add match reason with truncation
@@ -574,7 +575,7 @@ export function createSearchResultCell(
   `;
   container.appendChild(snippet);
 
-  // Add "Click to view details" hint
+  // Add "Click to view details" hint with result count if multiple
   const hint = document.createElement("div");
   hint.style.cssText = `
     font-size: ${styles.fontSize.sm};
@@ -584,7 +585,15 @@ export function createSearchResultCell(
     gap: ${styles.spacing.sm};
   `;
   hint.appendChild(createPreviewIcon({ color: styles.colors.primary }));
-  hint.appendChild(document.createTextNode("Click to view details"));
+
+  const resultCount = allResults?.length || 1;
+  hint.appendChild(
+    document.createTextNode(
+      resultCount > 1
+        ? `Click to view ${resultCount} results`
+        : "Click to view details"
+    )
+  );
   container.appendChild(hint);
 
   cell.appendChild(container);

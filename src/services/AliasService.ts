@@ -53,10 +53,10 @@ export class AliasService {
   /**
    * Retrieves all stored aliases
    */
-  public static getAliases(): AliasData {
+  public static async getAliases(): Promise<AliasData> {
     this.ensureStorage();
     try {
-      const data = this.storage.getItem(this.STORAGE_KEY);
+      const data = await this.storage.getItem(this.STORAGE_KEY);
       return data ? JSON.parse(data) : {};
     } catch (error) {
       console.error("Error retrieving aliases:", error);
@@ -67,16 +67,16 @@ export class AliasService {
   /**
    * Gets a specific alias by name
    */
-  public static getAlias(name: string): string | undefined {
+  public static async getAlias(name: string): Promise<string | undefined> {
     this.ensureStorage();
-    const aliases = this.getAliases();
+    const aliases = await this.getAliases();
     return aliases[name];
   }
 
   /**
    * Creates or updates an alias
    */
-  public static setAlias(name: string, text: string): void {
+  public static async setAlias(name: string, text: string): Promise<void> {
     this.ensureStorage();
     if (!this.isValidAliasName(name)) {
       throw new Error(
@@ -85,9 +85,9 @@ export class AliasService {
     }
 
     try {
-      const aliases = this.getAliases();
+      const aliases = await this.getAliases();
       aliases[name] = text;
-      this.storage.setItem(this.STORAGE_KEY, JSON.stringify(aliases));
+      await this.storage.setItem(this.STORAGE_KEY, JSON.stringify(aliases));
     } catch (error) {
       throw new Error(
         `Failed to save alias: ${
@@ -100,15 +100,15 @@ export class AliasService {
   /**
    * Deletes an alias
    */
-  public static deleteAlias(name: string): boolean {
+  public static async deleteAlias(name: string): Promise<boolean> {
     this.ensureStorage();
-    const aliases = this.getAliases();
+    const aliases = await this.getAliases();
     if (!(name in aliases)) {
       return false;
     }
 
     delete aliases[name];
-    this.storage.setItem(this.STORAGE_KEY, JSON.stringify(aliases));
+    await this.storage.setItem(this.STORAGE_KEY, JSON.stringify(aliases));
     return true;
   }
 
@@ -122,9 +122,9 @@ export class AliasService {
   /**
    * Processes text to replace all aliases with their values
    */
-  public static processText(text: string): string {
+  public static async processText(text: string): Promise<string> {
     this.ensureStorage();
-    const aliases = this.getAliases();
+    const aliases = await this.getAliases();
     let processedText = text;
 
     // Sort aliases by length (longest first) to handle nested aliases correctly
@@ -144,17 +144,17 @@ export class AliasService {
   /**
    * Clears all aliases from storage
    */
-  public static clearAllAliases(): void {
+  public static async clearAllAliases(): Promise<void> {
     this.ensureStorage();
-    this.storage.removeItem(this.STORAGE_KEY);
+    await this.storage.removeItem(this.STORAGE_KEY);
   }
 
   /**
    * Gets a formatted list of all aliases
    */
-  public static getAliasList(): string[] {
+  public static async getAliasList(): Promise<string[]> {
     this.ensureStorage();
-    const aliases = this.getAliases();
+    const aliases = await this.getAliases();
     return Object.entries(aliases).map(([name, value]) => `@${name}: ${value}`);
   }
 }

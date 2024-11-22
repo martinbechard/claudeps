@@ -8,19 +8,16 @@ import type { DocumentInfo } from "../types";
 import { DownloadTable } from "../ui/components/DownloadTable";
 import { getOrganizationId, getProjectUuid } from "../utils/getClaudeIds";
 import { ClaudeCache } from "./ClaudeCache";
-import { extractRelPath } from "@/utils/PathExtractor";
+import { extractRelPath } from "../utils/PathExtractor";
 
 export class DocumentRetrieval {
   private static readonly API_URL = "https://api.claude.ai/api/organizations";
 
   /**
    * Fetches available documents from the API with caching
-   * @param forceRefresh Force refresh from API instead of cache
    * @throws Error if documents cannot be retrieved
    */
-  public static async fetchDocuments(
-    forceRefresh: boolean = false
-  ): Promise<DocumentInfo[]> {
+  public static async fetchDocuments(): Promise<DocumentInfo[]> {
     try {
       const organizationId = getOrganizationId();
       const projectUuid = await getProjectUuid(organizationId);
@@ -29,7 +26,6 @@ export class DocumentRetrieval {
 
       const data = await ClaudeCache.fetchWithCache<any[]>(url, {
         timeoutMs: 300000, // Cache documents for 5 minutes
-        forceRefresh,
       });
 
       return this.processDocuments(data);
@@ -61,7 +57,6 @@ export class DocumentRetrieval {
    * @param data - Raw document data from API
    * @returns Processed document information
    */
-
   private static processDocuments(data: any[]): DocumentInfo[] {
     return data.map((doc) => {
       // Extract path from content, without forcing an extension

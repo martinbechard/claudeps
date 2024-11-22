@@ -43,6 +43,7 @@ module.exports = (env, argv) => {
           { from: "src/manifest.json", to: "manifest.json" },
           { from: "src/styles.css", to: "styles.css" },
           { from: "src/options.html", to: "options.html" },
+          { from: "lib/*", to: "./" },
         ],
       }),
     ],

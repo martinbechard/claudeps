@@ -1,10 +1,12 @@
+import { StorageService } from "./services/StorageService";
+import { SettingsService } from "./services/SettingsService";
+
 const STORAGE_KEY = "anthropic_api_settings";
 
 // Load saved settings
 async function loadSettings() {
   try {
-    const result = await chrome.storage.sync.get([STORAGE_KEY]);
-    const settings = result[STORAGE_KEY] || {};
+    const settings = await SettingsService.getSettings();
     if (settings.anthropicApiKey) {
       document.getElementById("apiKey").value = settings.anthropicApiKey;
     }
@@ -20,29 +22,6 @@ async function loadSettings() {
 document.addEventListener("DOMContentLoaded", () => {
   loadSettings();
 });
-
-function validateApiKey(key) {
-  if (!key) {
-    return "API key is required";
-  }
-  if (!key.startsWith("sk-ant-")) {
-    return 'Invalid API key format. Must start with "sk-ant-"';
-  }
-  if (key.length < 32) {
-    return "API key appears too short";
-  }
-  return null;
-}
-
-function validateModel(model) {
-  if (!model) {
-    return "Model is required";
-  }
-  if (!model.startsWith("claude-")) {
-    return 'Invalid model format. Must start with "claude-"';
-  }
-  return null;
-}
 
 async function testApiKey(apiKey) {
   const statusDiv = document.getElementById("apiKeyStatus");
@@ -87,7 +66,7 @@ async function testApiKey(apiKey) {
 
 document.getElementById("testApiKey").addEventListener("click", async () => {
   const apiKey = document.getElementById("apiKey").value.trim();
-  const error = validateApiKey(apiKey);
+  const error = SettingsService.validateApiKey(apiKey);
 
   if (error) {
     const statusDiv = document.getElementById("apiKeyStatus");
@@ -117,8 +96,8 @@ document
     apiKeySuccessDiv.style.display = "none";
     modelSuccessDiv.style.display = "none";
 
-    const apiKeyError = validateApiKey(apiKey);
-    const modelError = validateModel(model);
+    const apiKeyError = SettingsService.validateApiKey(apiKey);
+    const modelError = SettingsService.validateModel(model);
 
     if (apiKeyError) {
       apiKeyErrorDiv.textContent = apiKeyError;
@@ -133,24 +112,9 @@ document
     }
 
     try {
-      // Save settings
-      await chrome.storage.sync.set({
-        [STORAGE_KEY]: {
-          anthropicApiKey: apiKey,
-          model: model,
-        },
-      });
-
-      // In dev mode, also save to localStorage
-      if (process.env.NODE_ENV === "development") {
-        localStorage.setItem(
-          STORAGE_KEY,
-          JSON.stringify({
-            anthropicApiKey: apiKey,
-            model: model,
-          })
-        );
-      }
+      // Save settings using SettingsService
+      await SettingsService.setSetting("anthropicApiKey", apiKey);
+      await SettingsService.setSetting("model", model);
 
       // Keep the form values
       document.getElementById("apiKey").value = apiKey;

@@ -113,9 +113,7 @@ export class PromptAll {
   ): Promise<void> {
     try {
       console.log("Fetching project conversations...");
-      const conversations = await ProjectRetrieval.getProjectConversations(
-        true
-      );
+      const conversations = await ProjectRetrieval.getProjectConversations();
 
       if (conversations.length === 0) {
         throw new Error("No conversations found in project");
@@ -131,7 +129,7 @@ export class PromptAll {
 
       // Initialize table with pending status for all conversations
       const docs = this.createDocumentInfo(conversations, allResults);
-      const table = new DownloadTable(outputElement, docs, true);
+      const table = new DownloadTable(outputElement, true);
       table.render();
 
       // Process each conversation sequentially

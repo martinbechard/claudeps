@@ -6,17 +6,59 @@
 
 import type { ChatMessage, ChatMessageInput } from "../../types";
 import { ContentPreview } from "./ContentPreview";
+import { DraggableManager } from "./DraggableManager";
+import { SearchResultPreview } from "./SearchResultPreview";
+import { StarService } from "../../services/StarService";
+import { EditableLabel } from "./EditableLabel";
+import { ConversationRetrieval } from "../../services/ConversationRetrieval";
 
 export class ConversationPreview {
   private dialog: HTMLElement = document.createElement("div");
   private content: HTMLElement = document.createElement("div");
+  private header: HTMLElement = document.createElement("div");
   private messagesContainer: HTMLElement | null = null;
   private isOpen: boolean = false;
   private contentPreview: ContentPreview;
+  private draggableManager: DraggableManager;
+  private searchResultPreview: SearchResultPreview | null = null;
+  private showArtifactsOnly: boolean = false;
+  private currentConversationId: string = "";
+  private labelEditors: Map<string, EditableLabel> = new Map();
 
   constructor() {
     this.createDialog();
+    this.setupHeader();
     this.contentPreview = new ContentPreview();
+    this.draggableManager = new DraggableManager(this.dialog, this.header);
+  }
+
+  private async findInputElement(): Promise<Element | null> {
+    return document.querySelector('div[enterkeyhint="enter"]');
+  }
+
+  private async insertPrompt(text: string): Promise<void> {
+    const targetDiv = await this.findInputElement();
+    if (!targetDiv) {
+      console.error("Input element not found");
+      return;
+    }
+
+    const paragraphs = targetDiv.querySelectorAll("p");
+
+    if (
+      paragraphs.length === 1 &&
+      paragraphs[0].hasAttribute("data-placeholder")
+    ) {
+      // Empty state - replace content
+      paragraphs[0].innerHTML = text;
+    } else {
+      // Has content - append new paragraph
+      const newP = document.createElement("p");
+      newP.innerHTML = text;
+      targetDiv.appendChild(newP);
+    }
+
+    (targetDiv as HTMLElement).focus();
   }
 
   /**
@@ -32,20 +74,20 @@ export class ConversationPreview {
       display: none;
       z-index: 1000003;
       pointer-events: auto;
+      width: 800px;
+      max-width: 45vw;
     `;
 
     // Create dialog content container
     this.content.style.cssText = `
       background: white;
       border-radius: 8px;
-      width: 90%;
-      max-width: 800px;
+      width: 100%;
       max-height: 80vh;
       display: flex;
       flex-direction: column;
       box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
       position: relative;
-      margin: 20px;
       pointer-events: auto;
     `;
 
@@ -61,22 +103,232 @@ export class ConversationPreview {
   }
 
   /**
+   * Sets up the header element
+   */
+  private async setupHeader(): Promise<void> {
+    this.header.style.cssText = `
+      padding: 16px 20px;
+      border-bottom: 1px solid #e5e5e5;
+      cursor: move;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    `;
+  }
+
+  /**
+   * Sets the associated SearchResultPreview instance
+   */
+  public setSearchResultPreview(preview: SearchResultPreview): void {
+    this.searchResultPreview = preview;
+  }
+
+  /**
+   * Position the window side-by-side with SearchResultPreview
+   */
+  private positionSideBySide(): void {
+    if (!this.searchResultPreview) return;
+
+    const searchPos = this.searchResultPreview.getPosition();
+    const searchDim = this.searchResultPreview.getDimensions();
+
+    // Position to the right of search results with some spacing
+    const gap = 20; // Gap between windows
+    this.dialog.style.transform = "none";
+    this.dialog.style.top = `${searchPos.y}px`;
+    this.dialog.style.left = `${searchPos.x + searchDim.width + gap}px`;
+  }
+
+  private async createStarButton(messageId: string): Promise<HTMLElement> {
+    const container = document.createElement("div");
+    container.style.cssText = `
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+    `;
+
+    const buttonsContainer = document.createElement("div");
+    buttonsContainer.style.cssText = `
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    `;
+
+    const starButton = document.createElement("div");
+    starButton.className = "star-button";
+    starButton.innerHTML = "★";
+    starButton.title = "Add to Favorites";
+    starButton.style.cssText = `
+      cursor: pointer;
+      font-size: 16px;
+      transition: all 0.2s ease;
+      padding: 4px;
+      border-radius: 4px;
+    `;
+
+    const isStarred = await StarService.isStarred(
+      messageId,
+      this.currentConversationId
+    );
+    this.updateStarStyle(starButton, isStarred);
+
+    starButton.addEventListener("click", async (e) => {
+      e.stopPropagation();
+      const isNowStarred = await StarService.toggleStar(
+        messageId,
+        this.currentConversationId
+      );
+      this.updateStarStyle(starButton, isNowStarred);
+
+      // Update label visibility
+      if (isNowStarred) {
+        const existingLabels = await StarService.getAllLabels();
+        this.createLabelEditor(
+          container,
+          messageId,
+          "Favorites",
+          existingLabels
+        );
+      } else {
+        // Remove label editor if exists
+        this.labelEditors.get(messageId)?.destroy();
+        this.labelEditors.delete(messageId);
+      }
+    });
+
+    const sendButton = document.createElement("div");
+    sendButton.innerHTML = "➤";
+    sendButton.title = "Send to Input";
+    sendButton.style.cssText = `
+      cursor: pointer;
+      font-size: 16px;
+      transition: all 0.2s ease;
+      padding: 4px;
+      border-radius: 4px;
+      color: #0066cc;
+    `;
+
+    sendButton.addEventListener("click", async (e) => {
+      e.stopPropagation();
+      const messageElement = document.getElementById(`message-${messageId}`);
+      if (messageElement) {
+        const textContent = Array.from(
+          messageElement.querySelectorAll('div[style*="white-space: pre-wrap"]')
+        )
+          .map((el) => el.textContent)
+          .filter((text) => text)
+          .join("\n");
+
+        if (textContent) {
+          await this.insertPrompt(textContent.trim());
+        }
+      }
+    });
+
+    buttonsContainer.appendChild(starButton);
+    buttonsContainer.appendChild(sendButton);
+    container.appendChild(buttonsContainer);
+
+    // Add label if starred
+    if (isStarred) {
+      const existingLabels = await StarService.getAllLabels();
+      const label = await StarService.getMessageLabel(
+        messageId,
+        this.currentConversationId
+      );
+      this.createLabelEditor(
+        container,
+        messageId,
+        label || "Favorites",
+        existingLabels
+      );
+    }
+
+    return container;
+  }
+
+  private createLabelEditor(
+    container: HTMLElement,
+    messageId: string,
+    initialLabel: string,
+    existingLabels: string[]
+  ): void {
+    const labelContainer = document.createElement("div");
+    labelContainer.style.position = "relative";
+
+    const editor = new EditableLabel(
+      labelContainer,
+      initialLabel,
+      existingLabels,
+      async (newLabel: string) => {
+        await StarService.setMessageLabel(
+          messageId,
+          this.currentConversationId,
+          newLabel
+        );
+      }
+    );
+
+    this.labelEditors.set(messageId, editor);
+    container.appendChild(labelContainer);
+  }
+
+  private updateStarStyle(starButton: HTMLElement, isStarred: boolean): void {
+    starButton.style.color = isStarred ? "#ffd700" : "#e0e0e0";
+    starButton.style.textShadow = isStarred ? "0 0 2px #b38f00" : "none";
+    starButton.title = isStarred ? "Remove from Favorites" : "Add to Favorites";
+  }
+
+  private updateMessagesVisibility(): void {
+    if (!this.messagesContainer) return;
+
+    const messages = this.messagesContainer.children;
+    for (const message of Array.from(messages)) {
+      const artifacts = message.querySelectorAll(".artifact-container");
+      const hasArtifacts = artifacts.length > 0;
+
+      if (this.showArtifactsOnly) {
+        (message as HTMLElement).style.display = hasArtifacts ? "flex" : "none";
+      } else {
+        (message as HTMLElement).style.display = "flex";
+      }
+    }
+  }
+
+  /**
    * Shows the preview dialog with conversation content
    */
-  public show(
+  public async show(
     title: string,
     messages: ChatMessage[],
     conversationUrl?: string,
-    scrollToMessageId?: string
-  ): void {
+    scrollToMessageId?: string,
+    conversationId?: string
+  ): Promise<void> {
+    this.currentConversationId = conversationId || "";
+
     // Reset content
     this.content.innerHTML = "";
+    this.header.innerHTML = "";
+    this.labelEditors.clear();
 
-    // Create header
-    const header = document.createElement("div");
-    header.style.cssText = `
-      padding: 16px 20px;
-      border-bottom: 1px solid #e5e5e5;
+    // Count artifacts
+    let artifactCount = 0;
+    messages.forEach((message) => {
+      message.content.forEach((item) => {
+        if (item.type === "tool_use" && item.input) {
+          artifactCount++;
+        }
+      });
+    });
+
+    const headerContent = document.createElement("div");
+    headerContent.style.cssText = `
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      flex: 1;
     `;
 
     const titleElement = document.createElement("h2");
@@ -109,26 +361,64 @@ export class ConversationPreview {
       titleElement.textContent = title;
     }
 
-    // Count artifacts
-    let artifactCount = 0;
-    messages.forEach((message) => {
-      message.content.forEach((item) => {
-        if (item.type === "tool_use" && item.input) {
-          artifactCount++;
-        }
-      });
-    });
-
     const subtitle = document.createElement("div");
     subtitle.style.cssText = `
       font-size: 14px;
       color: #666;
-      margin-top: 4px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
     `;
-    subtitle.textContent = `${messages.length} messages, ${artifactCount} artifacts in conversation`;
+    subtitle.textContent = `${messages.length} messages, `;
 
-    header.appendChild(titleElement);
-    header.appendChild(subtitle);
+    const artifactInfo = document.createElement("span");
+    artifactInfo.style.cssText = `
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    `;
+    artifactInfo.innerHTML = `📄 ${artifactCount} artifacts`;
+
+    const filterButton = document.createElement("button");
+    filterButton.style.cssText = `
+      background: ${this.showArtifactsOnly ? "#e0e0e0" : "transparent"};
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      padding: 2px 8px;
+      font-size: 12px;
+      cursor: pointer;
+      color: #666;
+      transition: all 0.2s ease;
+      margin-left: 4px;
+    `;
+    filterButton.textContent = "Filter";
+    filterButton.title = "Show artifacts only";
+
+    filterButton.addEventListener("mouseover", () => {
+      filterButton.style.backgroundColor = this.showArtifactsOnly
+        ? "#d0d0d0"
+        : "#f0f0f0";
+    });
+    filterButton.addEventListener("mouseout", () => {
+      filterButton.style.backgroundColor = this.showArtifactsOnly
+        ? "#e0e0e0"
+        : "transparent";
+    });
+
+    filterButton.addEventListener("click", () => {
+      this.showArtifactsOnly = !this.showArtifactsOnly;
+      filterButton.style.backgroundColor = this.showArtifactsOnly
+        ? "#e0e0e0"
+        : "transparent";
+      this.updateMessagesVisibility();
+    });
+
+    artifactInfo.appendChild(filterButton);
+    subtitle.appendChild(artifactInfo);
+
+    headerContent.appendChild(titleElement);
+    headerContent.appendChild(subtitle);
+    this.header.appendChild(headerContent);
 
     // Create close button
     const closeButton = document.createElement("button");
@@ -165,22 +455,30 @@ export class ConversationPreview {
     `;
 
     // Add messages
-    messages.forEach((message) => {
+    for (const message of messages) {
       if (this.messagesContainer) {
-        this.messagesContainer.appendChild(this.createMessageBubble(message));
+        const messageBubble = await this.createMessageBubble(message);
+        this.messagesContainer.appendChild(messageBubble);
       }
-    });
+    }
+
+    // Apply initial visibility based on filter
+    this.updateMessagesVisibility();
 
     // Assemble dialog
     this.content.appendChild(closeButton);
-    this.content.appendChild(header);
+    this.content.appendChild(this.header);
     if (this.messagesContainer) {
       this.content.appendChild(this.messagesContainer);
     }
 
+    // Position side-by-side with search results before showing
+    this.positionSideBySide();
+
     // Show dialog with animation
-    this.dialog.style.display = "flex";
+    this.dialog.style.display = "block";
     this.dialog.style.opacity = "0";
+
     setTimeout(() => {
       this.dialog.style.transition = "opacity 0.2s ease-out";
       this.dialog.style.opacity = "1";
@@ -219,7 +517,9 @@ export class ConversationPreview {
   /**
    * Creates a message bubble element
    */
-  private createMessageBubble(message: ChatMessage): HTMLElement {
+  private async createMessageBubble(
+    message: ChatMessage
+  ): Promise<HTMLElement> {
     const isHuman = message.sender === "human";
 
     const container = document.createElement("div");
@@ -229,7 +529,15 @@ export class ConversationPreview {
       align-items: ${isHuman ? "flex-end" : "flex-start"};
       margin-bottom: 16px;
     `;
-    container.id = `message-${message.uuid}`; // Add message ID
+    container.id = `message-${message.uuid}`;
+
+    const bubbleRow = document.createElement("div");
+    bubbleRow.style.cssText = `
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+      flex-direction: ${isHuman ? "row-reverse" : "row"};
+    `;
 
     const bubble = document.createElement("div");
     bubble.style.cssText = `
@@ -264,7 +572,13 @@ export class ConversationPreview {
       }
     });
 
-    container.appendChild(bubble);
+    bubbleRow.appendChild(bubble);
+
+    // Add star button
+    const starButton = await this.createStarButton(message.uuid);
+    bubbleRow.appendChild(starButton);
+
+    container.appendChild(bubbleRow);
 
     // Add timestamp
     const timestamp = document.createElement("div");
@@ -350,16 +664,34 @@ export class ConversationPreview {
       this.contentPreview.show(fileName, diffContent, fileName + ".diff");
     } else if (input.content) {
       // For regular artifacts, show the content
-      const extension = input.language
-        ? this.getFileExtension(input.language)
+      const isMarkdown =
+        input.language === "markdown" ||
+        input.type === "text/markdown" ||
+        input.language === "text/markdown";
+
+      const extension = isMarkdown
+        ? ".md"
+        : input.language
+        ? ConversationRetrieval["getFileExtension"](input.language)
         : ".txt";
+
       const fileName = input.title
         ? input.title.endsWith(extension)
           ? input.title
           : input.title + extension
         : "artifact" + extension;
 
-      this.contentPreview.show(fileName, input.content, fileName);
+      // Create a markdown-formatted version of the content if it's markdown
+      let displayContent = input.content;
+      if (isMarkdown) {
+        displayContent = [
+          `# ${input.title || "Untitled"}`,
+          "",
+          input.content,
+        ].join("\n");
+      }
+
+      this.contentPreview.show(fileName, displayContent, fileName);
     }
   }
 
@@ -394,33 +726,11 @@ export class ConversationPreview {
   }
 
   /**
-   * Gets appropriate file extension based on language
-   */
-  private getFileExtension(language: string): string {
-    const extensionMap: Record<string, string> = {
-      typescript: ".ts",
-      javascript: ".js",
-      python: ".py",
-      java: ".java",
-      "text/markdown": ".md",
-      "application/json": ".json",
-      html: ".html",
-      css: ".css",
-      "text/html": ".html",
-      "application/vnd.ant.code": ".txt",
-      "application/vnd.ant.react": ".tsx",
-      "application/vnd.ant.mermaid": ".mmd",
-      "image/svg+xml": ".svg",
-    };
-
-    return extensionMap[language.toLowerCase()] || ".txt";
-  }
-
-  /**
    * Creates an artifact bubble for messages
    */
   private createArtifactBubble(input: ChatMessageInput): HTMLElement {
     const artifactContainer = document.createElement("div");
+    artifactContainer.className = "artifact-container"; // Add class for filtering
     artifactContainer.style.cssText = `
       background: #f8f8f8;
       border: 1px solid #ddd;
@@ -431,13 +741,13 @@ export class ConversationPreview {
 
     const title = document.createElement("div");
     title.style.cssText = `
-      font-weight: bold;
-      color: #333;
-      margin-bottom: 8px;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    `;
+    font-weight: bold;
+    color: #333;
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  `;
 
     const isUpdate = input.command === "update";
 
@@ -448,12 +758,12 @@ export class ConversationPreview {
     if (isUpdate) {
       const updateBadge = document.createElement("span");
       updateBadge.style.cssText = `
-        background: #0066cc;
-        color: white;
-        padding: 2px 6px;
-        border-radius: 4px;
-        font-size: 0.8em;
-      `;
+      background: #0066cc;
+      color: white;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 0.8em;
+    `;
       updateBadge.textContent = "UPDATE";
       title.appendChild(updateBadge);
     }
@@ -463,10 +773,10 @@ export class ConversationPreview {
     if (input.language) {
       const language = document.createElement("div");
       language.style.cssText = `
-        color: #666;
-        font-size: 0.9em;
-        margin-bottom: 8px;
-      `;
+      color: #666;
+      font-size: 0.9em;
+      margin-bottom: 8px;
+    `;
       language.textContent = `Language: ${input.language}`;
       artifactContainer.appendChild(language);
     }
@@ -474,20 +784,20 @@ export class ConversationPreview {
     // Create a button-like container for the artifact preview
     const previewButton = document.createElement("div");
     previewButton.style.cssText = `
-      background: #eee;
-      padding: 12px;
-      border-radius: 4px;
-      font-family: monospace;
-      font-size: 0.9em;
-      color: #666;
-      cursor: pointer;
-      transition: all 0.2s ease;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 8px;
-      border: 1px solid #ddd;
-    `;
+    background: #eee;
+    padding: 12px;
+    border-radius: 4px;
+    font-family: monospace;
+    font-size: 0.9em;
+    color: #666;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    border: 1px solid #ddd;
+  `;
 
     // Add an icon
     const icon = document.createElement("span");
@@ -542,6 +852,7 @@ export class ConversationPreview {
       this.dialog.style.display = "none";
       this.content.innerHTML = "";
       this.messagesContainer = null;
+      this.labelEditors.clear();
     }, 200);
 
     this.isOpen = false;
@@ -551,6 +862,9 @@ export class ConversationPreview {
    * Cleans up the component
    */
   public destroy(): void {
+    this.draggableManager.destroy();
+    this.labelEditors.forEach((editor) => editor.destroy());
+    this.labelEditors.clear();
     this.dialog.remove();
   }
 }

@@ -20,8 +20,8 @@ A Chrome extension that enhances interaction with the Claude AI interface (claud
 
 #### Installing from GitHub Release
 
-1. Go to the [Releases](https://github.com/yourusername/claude-extension/releases) page
-2. Download the latest `claude-extension-v*.zip` file
+1. Go to the [Releases](https://github.com/martinbechard/claudeps/releases) page
+2. Download the latest `claudeps-v*.zip` file
 3. Unzip the downloaded file
 4. Open Chrome and navigate to `chrome://extensions/`
 5. Enable "Developer mode" in the top right corner
@@ -31,7 +31,7 @@ Note: When installing from GitHub, Chrome may warn about developer mode extensio
 
 #### Updating the Extension
 
-1. Return to the [Releases](https://github.com/yourusername/claude-extension/releases) page periodically
+1. Return to the [Releases](https://github.com/martinbechard/claudeps/releases) page periodically
 2. If a new version is available, download and install it following the same steps
 3. After installing a new version, you may need to reload the extension or restart Chrome
 
@@ -40,8 +40,8 @@ Note: When installing from GitHub, Chrome may warn about developer mode extensio
 1. Clone the repository:
 
 ```bash
-git clone https://github.com/yourusername/claude-extension.git
-cd claude-extension
+git clone https://github.com/martinbechard/claudeps.git
+cd claudeps
 ```
 
 2. Install dependencies:
@@ -107,7 +107,7 @@ The project uses TypeScript and is built with Webpack. Key scripts:
 
    - Clean the dist directory
    - Create a production build
-   - Generate `claude-extension-v1.0.x.zip` in the project root
+   - Generate `claudeps-v1.0.x.zip` in the project root
    - Extract the version number from manifest.json
    - Display instructions for creating a GitHub release
 
@@ -124,7 +124,7 @@ The project uses TypeScript and is built with Webpack. Key scripts:
    - Select the tag you just pushed
    - Title the release (e.g., "v1.0.x")
    - Add release notes describing the changes
-   - Upload the generated `claude-extension-v1.0.x.zip` file
+   - Upload the generated `claudeps-v1.0.x.zip` file
    - Publish the release
 
 ### Future Enhancements

@@ -29,6 +29,7 @@ export class FloatingWindow {
         </div>
         <button id="minimizeButton" style="font-size: 12px; padding: 2px 8px;">_</button>
         <button id="modeToggleButton" title="Switch to Script Mode" style="font-size: 12px; padding: 2px 8px;">📝</button>
+        <button id="starredButton" title="View Starred Messages" style="font-size: 12px; padding: 2px 8px;">★</button>
         <button id="helpButton" style="font-size: 12px; padding: 2px 8px;">?</button>
       </div>
       <div class="input-container">
@@ -300,6 +301,7 @@ Your prompt here"></textarea>
       runButton: this.element.querySelector("#runScript"),
       output: this.element.querySelector("#scriptOutput"),
       helpButton: this.element.querySelector("#helpButton"),
+      starredButton: this.element.querySelector("#starredButton"),
       collapseButton: this.element.querySelector("#collapseButton"),
       minimizeButton: this.element.querySelector("#minimizeButton"),
       modeToggleButton: this.element.querySelector("#modeToggleButton"),

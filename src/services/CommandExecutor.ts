@@ -238,7 +238,7 @@ export class CommandExecutor {
           if (!script.aliasCommand.name || !script.aliasCommand.text) {
             throw new Error("Invalid alias command: missing name or text");
           }
-          AliasService.setAlias(
+          await AliasService.setAlias(
             script.aliasCommand.name,
             script.aliasCommand.text
           );
@@ -252,7 +252,10 @@ export class CommandExecutor {
           if (!script.aliasCommand.name) {
             throw new Error("Invalid delete alias command: missing name");
           }
-          if (AliasService.deleteAlias(script.aliasCommand.name)) {
+          const deleted = await AliasService.deleteAlias(
+            script.aliasCommand.name
+          );
+          if (deleted) {
             this.handleLog(
               `Alias @${script.aliasCommand.name} deleted`,
               "success"
@@ -266,7 +269,7 @@ export class CommandExecutor {
           break;
 
         case "list_alias":
-          const aliases = AliasService.getAliasList();
+          const aliases = await AliasService.getAliasList();
           if (aliases.length === 0) {
             this.handleLog("No aliases defined", "info");
           } else {

@@ -82,6 +82,7 @@ export interface CommandOptions {
   downloadMultiple?: boolean;
   maxTries?: number; // For repeat command
   stopConditions?: StopCondition[];
+  numResults?: string; // Number of results to return for search commands
 }
 
 /**
@@ -154,6 +155,7 @@ export interface FloatingWindowElements {
   runButton: HTMLButtonElement;
   output: HTMLElement;
   helpButton: HTMLButtonElement;
+  starredButton: HTMLButtonElement;
   minimizeButton: HTMLButtonElement;
   collapseButton: HTMLElement;
   modeToggleButton: HTMLButtonElement;
@@ -221,7 +223,7 @@ export interface ChatMessageContent {
 export interface ChatMessageInput {
   command: "create" | "update";
   id: string;
-  type?: "text" | "application/vnd.ant.code";
+  type?: "text" | "application/vnd.ant.code" | "text/markdown";
   title?: string;
 
   // Full file

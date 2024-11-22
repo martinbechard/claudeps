@@ -9,25 +9,94 @@
  * Abstract storage interface to support both browser and test environments
  */
 export interface IStorage {
-  getItem(key: string): string | null;
-  setItem(key: string, value: string): void;
-  removeItem(key: string): void;
+  getItem(key: string): Promise<string | null>;
+  setItem(key: string, value: string): Promise<void>;
+  removeItem(key: string): Promise<void>;
 }
 
 /**
  * Browser localStorage implementation of IStorage
  */
 export class BrowserStorage implements IStorage {
-  getItem(key: string): string | null {
+  async getItem(key: string): Promise<string | null> {
     return localStorage.getItem(key);
   }
 
-  setItem(key: string, value: string): void {
+  async setItem(key: string, value: string): Promise<void> {
     localStorage.setItem(key, value);
   }
 
-  removeItem(key: string): void {
+  async removeItem(key: string): Promise<void> {
     localStorage.removeItem(key);
+  }
+}
+
+/**
+ * Origin Private File System implementation of IStorage
+ */
+export class OPFSStorage implements IStorage {
+  private root: FileSystemDirectoryHandle | null = null;
+  private initialized = false;
+
+  private async initialize(): Promise<void> {
+    if (this.initialized) return;
+
+    try {
+      // Request access to the origin private file system
+      this.root = await navigator.storage.getDirectory();
+      this.initialized = true;
+    } catch (error) {
+      console.error("Failed to initialize OPFS:", error);
+      throw error;
+    }
+  }
+
+  private async getFileHandle(
+    key: string,
+    create = false
+  ): Promise<FileSystemFileHandle> {
+    await this.initialize();
+    if (!this.root) throw new Error("OPFS not initialized");
+    return this.root.getFileHandle(key, { create });
+  }
+
+  async getItem(key: string): Promise<string | null> {
+    try {
+      const fileHandle = await this.getFileHandle(key);
+      const file = await fileHandle.getFile();
+      return await file.text();
+    } catch (error) {
+      if ((error as any).name === "NotFoundError") {
+        return null;
+      }
+      console.error(`Failed to read from OPFS for key ${key}:`, error);
+      throw error;
+    }
+  }
+
+  async setItem(key: string, value: string): Promise<void> {
+    try {
+      const fileHandle = await this.getFileHandle(key, true);
+      const writable = await fileHandle.createWritable();
+      await writable.write(value);
+      await writable.close();
+    } catch (error) {
+      console.error(`Failed to write to OPFS for key ${key}:`, error);
+      throw error;
+    }
+  }
+
+  async removeItem(key: string): Promise<void> {
+    try {
+      await this.initialize();
+      if (!this.root) throw new Error("OPFS not initialized");
+      await this.root.removeEntry(key);
+    } catch (error) {
+      if ((error as any).name !== "NotFoundError") {
+        console.error(`Failed to remove from OPFS for key ${key}:`, error);
+        throw error;
+      }
+    }
   }
 }
 
@@ -37,15 +106,15 @@ export class BrowserStorage implements IStorage {
 export class MemoryStorage implements IStorage {
   private storage: Map<string, string> = new Map();
 
-  getItem(key: string): string | null {
+  async getItem(key: string): Promise<string | null> {
     return this.storage.get(key) || null;
   }
 
-  setItem(key: string, value: string): void {
+  async setItem(key: string, value: string): Promise<void> {
     this.storage.set(key, value);
   }
 
-  removeItem(key: string): void {
+  async removeItem(key: string): Promise<void> {
     this.storage.delete(key);
   }
 }

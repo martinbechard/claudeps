@@ -28,6 +28,8 @@ export class DraggableManager {
   private currentY: number = 0;
   private initialX: number = 0;
   private initialY: number = 0;
+  private startX: number = 0;
+  private startY: number = 0;
 
   /**
    * Creates a new DraggableManager instance.
@@ -50,16 +52,41 @@ export class DraggableManager {
   }
 
   /**
+   * Gets the actual position of the window accounting for transforms
+   */
+  private getWindowPosition(): { x: number; y: number } {
+    const rect = this.window.getBoundingClientRect();
+    return {
+      x: rect.left,
+      y: rect.top,
+    };
+  }
+
+  /**
    * Handles the start of a drag operation.
    * @param e - Mouse event
    */
   private handleMouseDown(e: MouseEvent): void {
     if (e.target === this.handle || this.handle.contains(e.target as Node)) {
       this.isDragging = true;
-      this.initialX = e.clientX - this.window.offsetLeft;
-      this.initialY = e.clientY - this.window.offsetTop;
-      this.window.style.position = "absolute";
+
+      // Get the actual window position
+      const pos = this.getWindowPosition();
+      this.startX = pos.x;
+      this.startY = pos.y;
+
+      // Calculate the initial mouse offset
+      this.initialX = e.clientX - this.startX;
+      this.initialY = e.clientY - this.startY;
+
+      // Remove transform and set absolute positioning
+      this.window.style.transform = "none";
+      this.window.style.position = "fixed";
       this.window.style.right = "auto";
+
+      // Set initial position explicitly
+      this.window.style.left = `${this.startX}px`;
+      this.window.style.top = `${this.startY}px`;
     }
   }
 

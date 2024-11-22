@@ -14,6 +14,7 @@ import { StatusManager } from "./ui/components/StatusManager";
 import { UIStateManager } from "./ui/components/UIStateManager";
 import { ScriptExecutionManager } from "./services/ScriptExecutionManager";
 import { HelpManager } from "./ui/components/HelpManager";
+import { StarredItemsPreview } from "./ui/components/StarredItemsPreview";
 import { AliasService } from "./services/AliasService";
 import type { FloatingWindowElements, StatusElements } from "./types";
 
@@ -24,6 +25,7 @@ export class ClaudeExtension {
   private uiStateManager?: UIStateManager;
   private scriptExecutionManager?: ScriptExecutionManager;
   private helpManager?: HelpManager;
+  private starredItemsPreview?: StarredItemsPreview;
 
   /**
    * Initialize UI components and bind event listeners.
@@ -63,6 +65,7 @@ export class ClaudeExtension {
         elements.output
       );
       this.helpManager = new HelpManager(elements.output);
+      this.starredItemsPreview = new StarredItemsPreview();
 
       // Bind event listeners
       this.bindEventListeners(elements);
@@ -86,6 +89,11 @@ export class ClaudeExtension {
     // Help button shows help text
     elements.helpButton.addEventListener("click", () =>
       this.helpManager?.show()
+    );
+
+    // Starred button shows starred items
+    elements.starredButton.addEventListener("click", () =>
+      this.starredItemsPreview?.show()
     );
 
     // Minimize and collapse buttons control window state
@@ -132,5 +140,6 @@ export class ClaudeExtension {
   public destroy(): void {
     this.floatingWindow?.destroy();
     this.draggableManager?.destroy();
+    this.starredItemsPreview?.destroy();
   }
 }

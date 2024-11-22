@@ -18,8 +18,9 @@ import type {
 } from "../types";
 import { ClaudeCache } from "./ClaudeCache";
 import { DownloadTable } from "../ui/components/DownloadTable";
-import { getOrganizationId } from "../utils/getClaudeIds";
-import { extractRelPath } from "@/utils/PathExtractor";
+import { getOrganizationId as getOrgId } from "../utils/getClaudeIds";
+import { extractRelPath } from "../utils/PathExtractor";
+import { ProjectRetrieval } from "./ProjectRetrieval";
 
 /**
  * Represents an extracted artifact for markdown rendering
@@ -57,25 +58,51 @@ export class ConversationRetrieval {
   }
 
   /**
-   * Retrieves a conversation by ID with caching
+   * Gets the organization ID from cookies
+   * @throws Error if organization ID is not found or invalid
+   */
+  public static getOrganizationId(): string {
+    return getOrgId();
+  }
+
+  /**
+   * Retrieves a conversation by ID with caching and validation
    * @param orgId - Organization ID
    * @param conversationId - Conversation ID to retrieve
-   * @param forceRefresh - Force refresh from API instead of cache
    * @returns Promise resolving to conversation data
    * @throws Error if retrieval fails
    */
   public static async getConversation(
     orgId: string,
-    conversationId: string,
-    forceRefresh: boolean = false
+    conversationId: string
   ): Promise<Conversation> {
     const url = `${this.API_URL}/${orgId}/chat_conversations/${conversationId}?tree=True&rendering_mode=messages&render_all_tools=true`;
 
     try {
-      return await ClaudeCache.fetchWithCache<Conversation>(url, {
-        forceRefresh,
-        timeoutMs: 60000, // Cache for 1 minute since conversations can update frequently
+      // Get the cached conversation - use NO_TIMEOUT since we validate with updated_at
+      const conversation = await ClaudeCache.fetchWithCache<Conversation>(url, {
+        timeoutMs: ClaudeCache.NO_TIMEOUT,
       });
+
+      // Get project conversations to validate against
+      const projectConversations =
+        await ProjectRetrieval.getProjectConversations();
+      const projectConversation = projectConversations.find(
+        (c) => c?.uuid === conversationId
+      );
+
+      // If conversation not found in project or dates don't match, invalidate cache and refetch
+      if (
+        !projectConversation ||
+        projectConversation.updated_at !== conversation.updated_at
+      ) {
+        await ClaudeCache.removeCached(url);
+        return await ClaudeCache.fetchWithCache<Conversation>(url, {
+          timeoutMs: ClaudeCache.NO_TIMEOUT,
+        });
+      }
+
+      return conversation;
     } catch (error) {
       throw new Error(
         `Error retrieving conversation: ${
@@ -117,8 +144,6 @@ export class ConversationRetrieval {
    * @param conversation - Conversation to extract artifacts from
    * @returns Array of artifacts
    */
-  // In ConversationRetrieval.ts, update the extractArtifacts method:
-
   private static extractArtifacts(
     conversation: Conversation
   ): ConversationArtifact[] {
@@ -237,19 +262,14 @@ export class ConversationRetrieval {
    * @param outputElement - Element to display the conversation in
    * @returns Promise that resolves when display is complete
    */
-
   public static async displayCurrentConversation(
     options: CommandOptions,
     outputElement: HTMLElement
   ): Promise<void> {
     try {
-      const orgId = getOrganizationId();
+      const orgId = this.getOrganizationId();
       const conversationId = this.getConversationIdFromUrl();
-      const conversation = await this.getConversation(
-        orgId,
-        conversationId,
-        true
-      );
+      const conversation = await this.getConversation(orgId, conversationId);
 
       // Extract and process artifacts if requested
       if (options?.includeArtifacts) {
@@ -276,11 +296,7 @@ export class ConversationRetrieval {
               updated_at: conversation.updated_at,
             },
             contentCallback: async () => {
-              const conv = await this.getConversation(
-                orgId,
-                conversationId,
-                true
-              );
+              const conv = await this.getConversation(orgId, conversationId);
               return this.conversationToMarkdown(conv);
             },
           },
@@ -294,27 +310,6 @@ export class ConversationRetrieval {
           error instanceof Error ? error.message : "Unknown error"
         }`
       );
-    }
-  }
-
-  /**
-   * Gets the organization ID from cookies
-   * @throws Error if organization ID is not found or invalid
-   */
-  private static getOrganizationId(): string {
-    const cookie = document.cookie
-      .split("; ")
-      .find((row) => row.startsWith("lastActiveOrg="));
-
-    if (!cookie) {
-      throw new Error("Organization ID not found in cookies");
-    }
-
-    try {
-      const value = decodeURIComponent(cookie.split("=")[1]);
-      return value.replace(/^"|"$/g, "");
-    } catch (error) {
-      throw new Error("Invalid organization ID format in cookie");
     }
   }
 
@@ -433,15 +428,11 @@ export class ConversationRetrieval {
   }> {
     // Get conversation ID from URL
     const conversationId = this.getConversationIdFromUrl();
-    const orgId = getOrganizationId();
+    const orgId = this.getOrganizationId();
 
     try {
       // Get conversation details
-      const conversation = await this.getConversation(
-        orgId,
-        conversationId,
-        true
-      );
+      const conversation = await this.getConversation(orgId, conversationId);
 
       return {
         conversationId,

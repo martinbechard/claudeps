@@ -17,14 +17,30 @@ export class ProjectRetrieval {
   private static readonly API_URL = "https://api.claude.ai/api/organizations";
 
   /**
+   * Clears the cache for project conversations
+   */
+  public static async clearCache(): Promise<void> {
+    try {
+      // Pattern matches URLs ending in /conversations
+      const projectConversationsPattern = /\/projects\/[^/]+\/conversations$/;
+      await ClaudeCache.invalidateByUrlPattern(projectConversationsPattern);
+    } catch (error) {
+      throw new Error(
+        `Error clearing project conversations cache: ${
+          error instanceof Error ? error.message : "Unknown error"
+        }`
+      );
+    }
+  }
+
+  /**
    * Retrieves all conversations in the current project with caching
-   * @param forceRefresh Force refresh from API instead of cache
    * @returns Promise resolving to array of project conversations
    * @throws Error if retrieval fails
    */
-  public static async getProjectConversations(
-    forceRefresh: boolean = false
-  ): Promise<ProjectConversation[]> {
+  public static async getProjectConversations(): Promise<
+    ProjectConversation[]
+  > {
     try {
       const orgId = getOrganizationId();
       const projectId = await getProjectUuid(orgId);
@@ -32,7 +48,6 @@ export class ProjectRetrieval {
 
       return await ClaudeCache.fetchWithCache<ProjectConversation[]>(url, {
         timeoutMs: 120000, // Cache project conversations for 2 minutes
-        forceRefresh,
       });
     } catch (error) {
       throw new Error(
@@ -67,8 +82,7 @@ export class ProjectRetrieval {
         try {
           const conv = await ConversationRetrieval.getConversation(
             orgId,
-            conversation.uuid,
-            true
+            conversation.uuid
           );
           return ConversationRetrieval.conversationToMarkdown(conv);
         } catch (error) {
@@ -78,6 +92,7 @@ export class ProjectRetrieval {
       },
     }));
   }
+
   /**
    * Creates a markdown summary of a conversation
    * @param conversation - Conversation to summarize
@@ -122,15 +137,13 @@ export class ProjectRetrieval {
   /**
    * Retrieves and displays conversations in the current project
    * @param outputElement - Element to display the conversations in
-   * @param forceRefresh Force refresh from API instead of cache
    * @returns Promise that resolves when display is complete
    */
   public static async displayCurrentProject(
-    outputElement: HTMLElement,
-    forceRefresh: boolean = false
+    outputElement: HTMLElement
   ): Promise<void> {
     try {
-      const conversations = await this.getProjectConversations(forceRefresh);
+      const conversations = await this.getProjectConversations();
       const docs = this.convertConversationsToDocumentInfo(conversations);
 
       if (docs.length === 0) {

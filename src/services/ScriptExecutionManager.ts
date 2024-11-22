@@ -11,7 +11,7 @@
 import { ScriptParser } from "../utils/ScriptParser";
 import { ScriptRunner } from "./ScriptRunner";
 import { CommandExecutor } from "./CommandExecutor";
-import { ClaudeCache } from "./ClaudeCache";
+import { ProjectRetrieval } from "./ProjectRetrieval";
 import type { Script, ScriptStatement } from "../types";
 import type { StatusManager } from "../ui/components/StatusManager";
 
@@ -61,9 +61,9 @@ export class ScriptExecutionManager {
     try {
       this.isExecuting = true;
 
-      // Clear cache at start of any new execution
-      ClaudeCache.clearCache();
-      this.handleLog("Cache cleared", "info");
+      // Clear only project conversations cache at start of execution
+      await ProjectRetrieval.clearCache();
+      this.handleLog("Project conversations cache cleared", "info");
 
       const script = ScriptParser.parse(text);
       await this.statusManager.setStatus("working", "Running script...");

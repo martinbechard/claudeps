@@ -10,22 +10,31 @@
 import type { SearchResultInfo } from "../../types";
 import { ConversationRetrieval } from "../../services/ConversationRetrieval";
 import { getOrganizationId } from "../../utils/getClaudeIds";
+import { DraggableManager } from "./DraggableManager";
 
 export class SearchResultPreview {
-  private dialog: HTMLDialogElement;
+  private dialog: HTMLElement;
   private content: HTMLDivElement;
+  private header: HTMLDivElement;
+  private navigation: HTMLDivElement;
+  private currentIndex: number = 0;
+  private results: SearchResultInfo[] = [];
   private onViewConversation: (
     conversationId: string,
     messageId: string
   ) => void;
+  private draggableManager: DraggableManager;
 
   constructor(
     onViewConversation: (conversationId: string, messageId: string) => void
   ) {
-    this.dialog = document.createElement("dialog");
+    this.dialog = document.createElement("div");
     this.content = document.createElement("div");
+    this.header = document.createElement("div");
+    this.navigation = document.createElement("div");
     this.onViewConversation = onViewConversation;
     this.setupDialog();
+    this.draggableManager = new DraggableManager(this.dialog, this.header);
   }
 
   private setupDialog(): void {
@@ -44,11 +53,11 @@ export class SearchResultPreview {
       left: 50%;
       transform: translate(-50%, -50%);
       z-index: 1000002;
+      display: none;
     `;
 
     // Create header
-    const header = document.createElement("div");
-    header.style.cssText = `
+    this.header.style.cssText = `
       padding: 16px;
       background: #f8f9fa;
       border-bottom: 1px solid #dee2e6;
@@ -56,6 +65,7 @@ export class SearchResultPreview {
       justify-content: space-between;
       align-items: center;
       border-radius: 8px 8px 0 0;
+      cursor: move;
     `;
 
     const title = document.createElement("h2");
@@ -78,22 +88,99 @@ export class SearchResultPreview {
     closeButton.textContent = "×";
     closeButton.addEventListener("click", () => this.hide());
 
-    header.appendChild(title);
-    header.appendChild(closeButton);
+    this.header.appendChild(title);
+    this.header.appendChild(closeButton);
+
+    // Setup navigation
+    this.navigation.style.cssText = `
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 8px 16px;
+      background: #f8f9fa;
+      border-bottom: 1px solid #dee2e6;
+    `;
 
     // Style the content container
     this.content.style.cssText = `
       padding: 16px;
-      max-height: calc(80vh - 120px);
+      max-height: calc(80vh - 160px);
       overflow-y: auto;
     `;
 
     // Add components to dialog
-    this.dialog.appendChild(header);
+    this.dialog.appendChild(this.header);
+    this.dialog.appendChild(this.navigation);
     this.dialog.appendChild(this.content);
 
     // Add dialog to document
     document.body.appendChild(this.dialog);
+  }
+
+  private updateNavigation(): void {
+    this.navigation.innerHTML = "";
+
+    if (this.results.length <= 1) {
+      this.navigation.style.display = "none";
+      return;
+    }
+
+    this.navigation.style.display = "flex";
+
+    // Previous button
+    const prevButton = document.createElement("button");
+    prevButton.style.cssText = `
+      padding: 4px 12px;
+      border: 1px solid #dee2e6;
+      border-radius: 4px;
+      background: white;
+      cursor: pointer;
+      color: #333;
+      font-size: 14px;
+      &:hover {
+        background: #f8f9fa;
+      }
+      &:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
+    `;
+    prevButton.textContent = "Previous";
+    prevButton.disabled = this.currentIndex === 0;
+    prevButton.addEventListener("click", () => {
+      if (this.currentIndex > 0) {
+        this.currentIndex--;
+        this.displayResult(this.results[this.currentIndex]);
+        this.updateNavigation();
+      }
+    });
+
+    // Result counter
+    const counter = document.createElement("span");
+    counter.style.cssText = `
+      color: #666;
+      font-size: 14px;
+    `;
+    counter.textContent = `Result ${this.currentIndex + 1} of ${
+      this.results.length
+    }`;
+
+    // Next button
+    const nextButton = document.createElement("button");
+    nextButton.style.cssText = prevButton.style.cssText;
+    nextButton.textContent = "Next";
+    nextButton.disabled = this.currentIndex === this.results.length - 1;
+    nextButton.addEventListener("click", () => {
+      if (this.currentIndex < this.results.length - 1) {
+        this.currentIndex++;
+        this.displayResult(this.results[this.currentIndex]);
+        this.updateNavigation();
+      }
+    });
+
+    this.navigation.appendChild(prevButton);
+    this.navigation.appendChild(counter);
+    this.navigation.appendChild(nextButton);
   }
 
   private showError(container: HTMLElement, message: string): void {
@@ -118,52 +205,8 @@ export class SearchResultPreview {
     container.appendChild(errorDiv);
   }
 
-  /**
-   * Shows the preview dialog with search result details or error information
-   */
-  public show(result: SearchResultInfo | string): void {
+  private displayResult(result: SearchResultInfo): void {
     this.content.innerHTML = "";
-
-    // If result is a string, it's an error message
-    if (typeof result === "string") {
-      const errorSection = {
-        title: "Error Details",
-        content: result,
-        style: `
-          font-size: 14px;
-          line-height: 1.5;
-          color: #dc3545;
-          background: #fff5f5;
-          padding: 12px;
-          border-radius: 4px;
-          border-left: 3px solid #dc3545;
-          margin-bottom: 20px;
-        `,
-      };
-
-      const section = document.createElement("div");
-      section.style.marginBottom = "24px";
-
-      const heading = document.createElement("h3");
-      heading.style.cssText = `
-        margin: 0 0 8px 0;
-        font-size: 16px;
-        color: #333;
-        font-weight: 600;
-      `;
-      heading.textContent = errorSection.title;
-
-      const contentDiv = document.createElement("div");
-      contentDiv.style.cssText = errorSection.style;
-      contentDiv.textContent = errorSection.content;
-
-      section.appendChild(heading);
-      section.appendChild(contentDiv);
-      this.content.appendChild(section);
-
-      this.dialog.showModal();
-      return;
-    }
 
     // Create sections for different parts of the result
     const sections = [
@@ -247,7 +290,7 @@ export class SearchResultPreview {
               return;
             }
 
-            // Notify parent to show conversation
+            // Notify parent to show conversation without hiding search result preview
             this.onViewConversation(result.conversationId, result.messageId);
           } catch (error) {
             console.error("Failed to load conversation:", error);
@@ -263,21 +306,100 @@ export class SearchResultPreview {
       section.appendChild(contentDiv);
       this.content.appendChild(section);
     });
+  }
 
-    this.dialog.showModal();
+  /**
+   * Shows the preview dialog with search result details or error information
+   */
+  public show(results: SearchResultInfo[] | string): void {
+    // Reset state
+    this.currentIndex = 0;
+
+    // If results is a string, it's an error message
+    if (typeof results === "string") {
+      this.results = [];
+      this.content.innerHTML = "";
+      this.navigation.style.display = "none";
+
+      const errorSection = {
+        title: "Error Details",
+        content: results,
+        style: `
+          font-size: 14px;
+          line-height: 1.5;
+          color: #dc3545;
+          background: #fff5f5;
+          padding: 12px;
+          border-radius: 4px;
+          border-left: 3px solid #dc3545;
+          margin-bottom: 20px;
+        `,
+      };
+
+      const section = document.createElement("div");
+      section.style.marginBottom = "24px";
+
+      const heading = document.createElement("h3");
+      heading.style.cssText = `
+        margin: 0 0 8px 0;
+        font-size: 16px;
+        color: #333;
+        font-weight: 600;
+      `;
+      heading.textContent = errorSection.title;
+
+      const contentDiv = document.createElement("div");
+      contentDiv.style.cssText = errorSection.style;
+      contentDiv.textContent = errorSection.content;
+
+      section.appendChild(heading);
+      section.appendChild(contentDiv);
+      this.content.appendChild(section);
+    } else {
+      this.results = results;
+      if (results.length > 0) {
+        this.displayResult(results[0]);
+      }
+    }
+
+    this.updateNavigation();
+    this.dialog.style.display = "block";
+  }
+
+  /**
+   * Gets the current position of the dialog
+   */
+  public getPosition(): { x: number; y: number } {
+    const rect = this.dialog.getBoundingClientRect();
+    return {
+      x: rect.left,
+      y: rect.top,
+    };
+  }
+
+  /**
+   * Gets the dimensions of the dialog
+   */
+  public getDimensions(): { width: number; height: number } {
+    const rect = this.dialog.getBoundingClientRect();
+    return {
+      width: rect.width,
+      height: rect.height,
+    };
   }
 
   /**
    * Hides the preview dialog
    */
   public hide(): void {
-    this.dialog.close();
+    this.dialog.style.display = "none";
   }
 
   /**
    * Cleans up the component
    */
   public destroy(): void {
+    this.draggableManager.destroy();
     this.dialog.remove();
   }
 }

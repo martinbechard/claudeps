@@ -83,23 +83,20 @@ export class DownloadTable {
     this.searchResultPreview = new SearchResultPreview(
       async (conversationId, messageId) => {
         try {
-          // Hide search result preview before showing conversation
-          this.searchResultPreview.hide();
-
           const orgId = getOrganizationId();
           if (!orgId) {
             throw new Error("Unable to get organization ID");
           }
           const conversation = await ConversationRetrieval.getConversation(
             orgId,
-            conversationId,
-            true // Force refresh
+            conversationId
           );
           this.previewDialog.show(
             conversation.name || "Conversation Preview",
             conversation.chat_messages,
             undefined,
-            messageId
+            messageId,
+            conversationId // Pass the conversation ID
           );
         } catch (error) {
           console.error("Failed to load conversation:", error);
@@ -107,6 +104,9 @@ export class DownloadTable {
         }
       }
     );
+
+    // Connect SearchResultPreview with ConversationPreview for positioning
+    this.previewDialog.setSearchResultPreview(this.searchResultPreview);
 
     this.initializeTable();
 
@@ -171,7 +171,7 @@ export class DownloadTable {
    */
   public updateSearchResult(
     conversationId: string,
-    searchResult: SearchResultInfo | undefined,
+    searchResults: SearchResultInfo[] | undefined,
     error?: string,
     select: boolean = false
   ): void {
@@ -195,9 +195,10 @@ export class DownloadTable {
     const newCell = error
       ? createSearchResultCell(undefined, error, this.searchResultPreview)
       : createSearchResultCell(
-          searchResult,
+          searchResults?.[0], // Show first result in table
           undefined,
-          this.searchResultPreview
+          this.searchResultPreview,
+          searchResults // Pass all results for preview
         );
     oldCell.replaceWith(newCell);
 
@@ -208,8 +209,8 @@ export class DownloadTable {
     if (itemIndex !== -1) {
       this.items[itemIndex] = {
         ...this.items[itemIndex],
-        searchResult,
-        isSelected: select && !!searchResult,
+        searchResult: searchResults?.[0], // Keep first result in item
+        isSelected: select && !!searchResults?.[0],
       };
 
       // Update checkbox if there's a result
@@ -217,7 +218,7 @@ export class DownloadTable {
         'input[type="checkbox"]'
       ) as HTMLInputElement;
       if (checkbox) {
-        checkbox.checked = select && !!searchResult;
+        checkbox.checked = select && !!searchResults?.[0];
       }
     }
   }
@@ -283,14 +284,14 @@ export class DownloadTable {
         // Create header content container
         const headerContent = document.createElement("div");
         headerContent.style.cssText = `
-          display: flex;
-          align-items: center;
-          gap: 4px;
-          ${config.sortable ? "cursor: pointer;" : ""}
-          padding: 4px;
-          border-radius: 4px;
-          transition: background-color 0.2s ease;
-        `;
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        ${config.sortable ? "cursor: pointer;" : ""}
+        padding: 4px;
+        border-radius: 4px;
+        transition: background-color 0.2s ease;
+      `;
 
         // Add label
         const label = document.createElement("span");
@@ -301,10 +302,10 @@ export class DownloadTable {
         if (config.sortable) {
           const sortIndicator = document.createElement("span");
           sortIndicator.style.cssText = `
-            font-size: 0.8em;
-            opacity: ${this.currentSortColumn === config.id ? "1" : "0.3"};
-            transition: opacity 0.2s ease;
-          `;
+          font-size: 0.8em;
+          opacity: ${this.currentSortColumn === config.id ? "1" : "0.3"};
+          transition: opacity 0.2s ease;
+        `;
           sortIndicator.textContent = this.getSortIndicator(config.id);
           headerContent.appendChild(sortIndicator);
 
@@ -440,9 +441,6 @@ export class DownloadTable {
     // If it's a conversation, use conversation preview
     if (item.metadata?.conversationId) {
       try {
-        // Hide search result preview before showing conversation
-        this.searchResultPreview.hide();
-
         const orgId = getOrganizationId();
         const conversation = await ConversationRetrieval.getConversation(
           orgId,
@@ -451,7 +449,9 @@ export class DownloadTable {
         this.previewDialog.show(
           item.fileName,
           conversation.chat_messages,
-          item.metadata.url
+          item.metadata.url,
+          undefined, // No specific message to scroll to
+          item.metadata.conversationId // Pass the conversation ID
         );
       } catch (error) {
         console.error("Failed to load conversation preview:", error);

@@ -42,19 +42,41 @@ export function getIdsFromUrl(): {
  * @throws Error if organization ID is not found or invalid
  */
 export function getOrganizationId(): string {
+  if (!document.cookie) {
+    throw new Error("No cookies found");
+  }
+
   const cookie = document.cookie
     .split("; ")
     .find((row) => row.startsWith("lastActiveOrg="));
 
   if (!cookie) {
-    throw new Error("Organization ID not found in cookies");
+    throw new Error(
+      "Organization ID not found in cookies. Please ensure you are logged into Claude.ai"
+    );
+  }
+
+  const parts = cookie.split("=");
+  if (parts.length !== 2) {
+    throw new Error("Invalid organization ID cookie format");
   }
 
   try {
-    const value = decodeURIComponent(cookie.split("=")[1]);
-    return value.replace(/^"|"$/g, "");
+    const value = decodeURIComponent(parts[1]);
+    if (!value) {
+      throw new Error("Empty organization ID value");
+    }
+    // Remove any surrounding quotes
+    const cleanValue = value.replace(/^"|"$/g, "");
+    if (!cleanValue) {
+      throw new Error("Empty organization ID after cleaning");
+    }
+    return cleanValue;
   } catch (error) {
-    throw new Error("Invalid organization ID format in cookie");
+    if (error instanceof Error) {
+      throw new Error(`Failed to parse organization ID: ${error.message}`);
+    }
+    throw new Error("Failed to parse organization ID");
   }
 }
 
@@ -65,6 +87,10 @@ export function getOrganizationId(): string {
  * @throws Error if project UUID cannot be retrieved
  */
 export async function getProjectUuid(organizationId: string): Promise<string> {
+  if (!organizationId) {
+    throw new Error("Organization ID is required");
+  }
+
   const { projectId, conversationId } = getIdsFromUrl();
 
   if (projectId) {
