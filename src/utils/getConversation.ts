@@ -13,6 +13,16 @@ import type { Conversation } from "../types";
 
 const API_URL = "https://api.claude.ai/api/organizations";
 
+let conversationCache: { [key: string]: Conversation } = {};
+
+/**
+ * Clears the cached conversation for the given ID
+ * @param conversationId The ID of the conversation to clear from cache
+ */
+export function clearConversationCache(conversationId: string): void {
+  delete conversationCache[conversationId];
+}
+
 /**
  * Gets current conversation details including latest message ID
  * @returns Promise resolving to { conversationId, parentMessageUuid }
@@ -56,6 +66,9 @@ export async function getConversationDetails(
     }
 
     const conversation: Conversation = await response.json();
+
+    // Update cache with new conversation details
+    conversationCache[conversationId] = conversation;
 
     return conversation;
   } catch (error) {

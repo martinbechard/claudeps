@@ -20,6 +20,10 @@ async function loadSettings() {
     const enableApi = settings.enableAnthropicApi ?? false;
     document.getElementById("enableAnthropicApi").checked = enableApi;
     updateApiFieldsVisibility(enableApi);
+
+    // Load debug trace setting
+    const debugTrace = settings.debugTraceRequests ?? false;
+    document.getElementById("debugTraceRequests").checked = debugTrace;
   } catch (error) {
     console.error("Failed to load settings:", error);
   }
@@ -35,9 +39,33 @@ function updateApiFieldsVisibility(enabled) {
   testApiKeyButton.style.display = enabled ? "inline-block" : "none";
 }
 
+// Add ripple effect to buttons
+function createRipple(event) {
+  const button = event.currentTarget;
+  const ripple = document.createElement("span");
+  const rect = button.getBoundingClientRect();
+
+  const diameter = Math.max(rect.width, rect.height);
+  const radius = diameter / 2;
+
+  ripple.style.width = ripple.style.height = `${diameter}px`;
+  ripple.style.left = `${event.clientX - rect.left - radius}px`;
+  ripple.style.top = `${event.clientY - rect.top - radius}px`;
+
+  button.appendChild(ripple);
+
+  setTimeout(() => ripple.remove(), 600);
+}
+
 // Initial load
 document.addEventListener("DOMContentLoaded", () => {
   loadSettings();
+
+  // Add ripple effect to all buttons
+  const buttons = document.querySelectorAll("button");
+  buttons.forEach((button) => {
+    button.addEventListener("click", createRipple);
+  });
 });
 
 // Handle API toggle
@@ -103,6 +131,28 @@ document.getElementById("testApiKey").addEventListener("click", async () => {
   await testApiKey(apiKey);
 });
 
+function showSuccessMessage(message) {
+  const successDiv = document.createElement("div");
+  successDiv.className = "success";
+  successDiv.textContent = message;
+  successDiv.style.position = "fixed";
+  successDiv.style.top = "20px";
+  successDiv.style.left = "50%";
+  successDiv.style.transform = "translateX(-50%)";
+  successDiv.style.zIndex = "1000";
+  successDiv.style.padding = "12px 24px";
+  successDiv.style.borderRadius = "4px";
+  successDiv.style.boxShadow = "0 2px 8px rgba(0,0,0,0.2)";
+
+  document.body.appendChild(successDiv);
+
+  setTimeout(() => {
+    successDiv.style.opacity = "0";
+    successDiv.style.transform = "translateX(-50%) translateY(-20px)";
+    setTimeout(() => successDiv.remove(), 300);
+  }, 2000);
+}
+
 document
   .getElementById("settingsForm")
   .addEventListener("submit", async (e) => {
@@ -112,21 +162,16 @@ document
     const apiKey = document.getElementById("apiKey").value.trim();
     const model = document.getElementById("model").value.trim();
     const theme = document.getElementById("theme").value;
+    const debugTrace = document.getElementById("debugTraceRequests").checked;
 
     const apiKeyErrorDiv = document.getElementById("apiKeyError");
     const modelErrorDiv = document.getElementById("modelError");
     const themeErrorDiv = document.getElementById("themeError");
-    const apiKeySuccessDiv = document.getElementById("apiKeySuccess");
-    const modelSuccessDiv = document.getElementById("modelSuccess");
-    const themeSuccessDiv = document.getElementById("themeSuccess");
 
     // Reset messages
     apiKeyErrorDiv.style.display = "none";
     modelErrorDiv.style.display = "none";
     themeErrorDiv.style.display = "none";
-    apiKeySuccessDiv.style.display = "none";
-    modelSuccessDiv.style.display = "none";
-    themeSuccessDiv.style.display = "none";
 
     let hasErrors = false;
 
@@ -162,6 +207,7 @@ document
     try {
       // Save settings using SettingsService
       await SettingsService.setSetting("enableAnthropicApi", enableApi);
+      await SettingsService.setSetting("debugTraceRequests", debugTrace);
       if (enableApi) {
         await SettingsService.setSetting("anthropicApiKey", apiKey);
         await SettingsService.setSetting("model", model);
@@ -177,12 +223,10 @@ document
       document.getElementById("model").value = enableApi ? model : "";
       document.getElementById("theme").value = theme;
       document.getElementById("enableAnthropicApi").checked = enableApi;
+      document.getElementById("debugTraceRequests").checked = debugTrace;
 
-      apiKeySuccessDiv.textContent = "Settings saved successfully";
-      apiKeySuccessDiv.style.display = "block";
-      setTimeout(() => {
-        apiKeySuccessDiv.style.display = "none";
-      }, 3000);
+      // Show success message
+      showSuccessMessage("Settings saved successfully");
 
       // Notify content script of theme change with proper error handling
       chrome.tabs.query({}, (tabs) => {

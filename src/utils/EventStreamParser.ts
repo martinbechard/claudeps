@@ -26,6 +26,22 @@ interface EventData {
     perModelLimit: number | null;
   };
   completion_type?: string;
+  delta?: {
+    type: string;
+    text: string;
+  };
+  message?: {
+    content: any[];
+    id: string;
+    model: string;
+    role: string;
+    stop_reason: string | null;
+    type: string;
+  };
+  content_block?: {
+    type: string;
+    text: string;
+  };
 }
 
 /**
@@ -43,6 +59,12 @@ export class EventStreamParser {
   private buffer: string = "";
   private currentMessage: string = "";
   private isComplete: boolean = false;
+  private debug: boolean = false;
+  private hasStarted: boolean = false;
+
+  constructor(debug: boolean = false) {
+    this.debug = debug;
+  }
 
   /**
    * Processes a chunk of data from the event stream
@@ -54,6 +76,10 @@ export class EventStreamParser {
     chunk: string,
     onEvent?: (event: StreamEvent) => void
   ): string {
+    if (this.debug) {
+      console.log("Processing chunk:", chunk);
+    }
+
     // Add new data to buffer
     this.buffer += chunk;
 
@@ -67,6 +93,9 @@ export class EventStreamParser {
       try {
         const parsed = this.parseEvent(event);
         if (parsed) {
+          if (this.debug) {
+            console.log("Parsed event:", parsed);
+          }
           if (onEvent) {
             onEvent(parsed);
           }
@@ -74,6 +103,9 @@ export class EventStreamParser {
         }
       } catch (error) {
         console.error("Error parsing event:", error);
+        if (this.debug) {
+          console.error("Raw event:", event);
+        }
       }
     }
 
@@ -102,7 +134,10 @@ export class EventStreamParser {
         try {
           eventData = JSON.parse(value);
         } catch (error) {
-          console.error("Error parsing event data:", error);
+          if (this.debug) {
+            console.error("Error parsing event data:", error);
+            console.error("Raw data:", value);
+          }
           return null;
         }
       }
@@ -124,19 +159,51 @@ export class EventStreamParser {
    * @param event - Parsed event data
    */
   private processEvent(event: StreamEvent): void {
+    if (this.debug) {
+      console.log("Processing event type:", event.type);
+    }
+
     // Skip ping events
     if (event.type === "ping") return;
 
-    // Handle completion events
-    if (event.type === "completion" && event.data) {
-      if (event.data.completion) {
-        this.currentMessage += event.data.completion;
-      }
+    // Handle message start
+    if (event.type === "message_start") {
+      this.hasStarted = true;
+      return;
+    }
 
-      // Check for completion
-      if (event.data.stop_reason) {
-        this.isComplete = true;
+    // Handle content block delta events
+    if (event.type === "content_block_delta" && event.data.delta?.text) {
+      if (!this.hasStarted) {
+        if (this.debug) {
+          console.warn("Received content before message_start");
+        }
+        this.hasStarted = true;
       }
+      this.currentMessage += event.data.delta.text;
+      return;
+    }
+
+    // Handle completion events (legacy support)
+    if (event.type === "completion" && event.data.completion) {
+      if (!this.hasStarted) {
+        if (this.debug) {
+          console.warn("Received completion before message_start");
+        }
+        this.hasStarted = true;
+      }
+      this.currentMessage += event.data.completion;
+    }
+
+    // Check for completion
+    if (
+      event.type === "message_complete" ||
+      (event.data.stop_reason && event.data.stop_reason !== null)
+    ) {
+      if (this.debug) {
+        console.log("Message complete, final content:", this.currentMessage);
+      }
+      this.isComplete = true;
     }
   }
 
@@ -155,11 +222,19 @@ export class EventStreamParser {
   }
 
   /**
+   * Checks if message streaming has started
+   */
+  public hasMessageStarted(): boolean {
+    return this.hasStarted;
+  }
+
+  /**
    * Resets the parser state
    */
   public reset(): void {
     this.buffer = "";
     this.currentMessage = "";
     this.isComplete = false;
+    this.hasStarted = false;
   }
 }

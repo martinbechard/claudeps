@@ -1,9 +1,7 @@
 <!DOCTYPE html>
 <html>
   <head>
-    <title>Claude Extension Settings</title>
-    <!-- Prism CSS -->
-    <link href="lib/prism.css" rel="stylesheet" />
+    <title>ClaudePS Extension Settings</title>
     <style>
       body {
         padding: 20px;
@@ -49,6 +47,11 @@
         font-size: 14px;
         margin-top: 5px;
         display: none;
+        text-align: center;
+        padding: 10px;
+        background: #d4edda;
+        border-radius: 4px;
+        animation: fadeIn 0.3s ease;
       }
       .button-group {
         display: flex;
@@ -61,19 +64,66 @@
         padding: 8px 16px;
         border-radius: 4px;
         cursor: pointer;
+        transition: all 0.2s ease;
+        position: relative;
+        overflow: hidden;
       }
       button:hover {
         background: #0052a3;
       }
+      button:active {
+        background: #004080;
+        transform: scale(0.98);
+      }
+      button::after {
+        content: "";
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        width: 5px;
+        height: 5px;
+        background: rgba(255, 255, 255, 0.5);
+        opacity: 0;
+        border-radius: 100%;
+        transform: scale(1, 1) translate(-50%);
+        transform-origin: 50% 50%;
+      }
+      button:active::after {
+        animation: ripple 0.6s ease-out;
+      }
+      @keyframes ripple {
+        0% {
+          transform: scale(0, 0);
+          opacity: 0.5;
+        }
+        100% {
+          transform: scale(40, 40);
+          opacity: 0;
+        }
+      }
+      @keyframes fadeIn {
+        from {
+          opacity: 0;
+          transform: translateY(-10px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
       button:disabled {
         background: #ccc;
         cursor: not-allowed;
+        transform: none;
       }
       #testApiKey {
         background: #28a745;
       }
       #testApiKey:hover {
         background: #218838;
+      }
+      #testApiKey:active {
+        background: #1e7e34;
       }
       #testApiKey:disabled {
         background: #ccc;
@@ -139,21 +189,17 @@
           <div class="error" id="themeError"></div>
           <div class="success" id="themeSuccess"></div>
         </div>
+        <div class="toggle-group">
+          <input type="checkbox" id="debugTraceRequests" />
+          <label for="debugTraceRequests">Debug: Trace API Requests</label>
+        </div>
         <div class="button-group">
           <button type="submit">Save</button>
           <button type="button" id="testApiKey">Test API Key</button>
         </div>
       </form>
     </div>
-    <!-- Local scripts -->
-    <script src="lib/marked.js"></script>
-    <script src="lib/prism.js"></script>
-    <script src="lib/prism-typescript.js"></script>
-    <script src="lib/prism-javascript.js"></script>
-    <script src="lib/prism-python.js"></script>
-    <script src="lib/prism-json.js"></script>
-    <script src="lib/prism-markdown.js"></script>
     <!-- App JS -->
-    <script src="options.js"></script>
+    <script src="options.js" type="module"></script>
   </body>
 </html>

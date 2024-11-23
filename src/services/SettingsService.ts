@@ -12,6 +12,7 @@ export interface Settings {
   model?: string;
   theme?: "light" | "dark";
   enableAnthropicApi?: boolean;
+  debugTraceRequests?: boolean;
 }
 
 /**
@@ -22,6 +23,7 @@ export class SettingsService {
   private static readonly DEFAULT_MODEL = "claude-3-5-sonnet-20241022";
   private static readonly DEFAULT_THEME = "light" as const;
   private static readonly DEFAULT_ENABLE_ANTHROPIC = false;
+  private static readonly DEFAULT_DEBUG_TRACE = false;
 
   /**
    * Gets all settings from storage
@@ -57,6 +59,9 @@ export class SettingsService {
     }
     if (key === "enableAnthropicApi") {
       return settings[key] ?? this.DEFAULT_ENABLE_ANTHROPIC;
+    }
+    if (key === "debugTraceRequests") {
+      return settings[key] ?? this.DEFAULT_DEBUG_TRACE;
     }
     return settings[key] || (key === "model" ? this.DEFAULT_MODEL : undefined);
   }

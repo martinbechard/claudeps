@@ -9,6 +9,7 @@
  */
 
 import { SettingsService } from "./SettingsService";
+import { requestCompletion } from "../utils/requestCompletion";
 
 export interface Message {
   role: "user" | "assistant";
@@ -56,15 +57,56 @@ export class AnthropicService {
     options: CompletionOptions = {}
   ): Promise<CompletionResult> {
     console.log("[AnthropicService] Starting API request");
+    let debugTrace = false;
 
     try {
       const enableApi = await SettingsService.getSetting("enableAnthropicApi");
+      debugTrace = (await SettingsService.getSetting(
+        "debugTraceRequests"
+      )) as boolean;
+
       if (!enableApi) {
-        console.log("[AnthropicService] Anthropic API is disabled");
-        return {
-          success: false,
-          error: "Anthropic API is disabled in settings",
-        };
+        console.log(
+          "[AnthropicService] Anthropic API is disabled, using claude.ai"
+        );
+        try {
+          if (debugTrace) {
+            console.log("[Debug] Claude.ai Request:", {
+              messages,
+              messageSize: JSON.stringify(messages).length,
+            });
+          }
+
+          const response = await requestCompletion({
+            messages,
+            stream: false,
+            renderingMode: "messages",
+          });
+
+          if (debugTrace) {
+            console.log("[Debug] Claude.ai Response:", {
+              completion: response.completion,
+              responseSize: response.completion.length,
+            });
+          }
+
+          return {
+            success: true,
+            text: response.completion,
+          };
+        } catch (error) {
+          console.error("[AnthropicService] claude.ai request failed:", error);
+          if (debugTrace) {
+            console.log("[Debug] Claude.ai Error:", error);
+          }
+          return {
+            success: false,
+            error:
+              error instanceof Error
+                ? error.message
+                : "Failed to make claude.ai request",
+          };
+        }
       }
 
       const settings = await SettingsService.validateSettings();
@@ -97,6 +139,15 @@ export class AnthropicService {
         top_k: options.topK,
       };
 
+      if (debugTrace) {
+        console.log("[Debug] API Request:", {
+          model,
+          messageCount: messages.length,
+          requestSize: JSON.stringify(requestBody).length,
+          messages: messages,
+        });
+      }
+
       return new Promise((resolve, reject) => {
         console.log("[AnthropicService] Sending message to background script");
 
@@ -104,6 +155,9 @@ export class AnthropicService {
         if (options.signal) {
           options.signal.addEventListener("abort", () => {
             console.log("[AnthropicService] Request cancelled");
+            if (debugTrace) {
+              console.log("[Debug] Request cancelled by user");
+            }
             resolve({
               success: false,
               cancelled: true,
@@ -114,6 +168,9 @@ export class AnthropicService {
           // If signal is already aborted, resolve immediately
           if (options.signal.aborted) {
             console.log("[AnthropicService] Signal already aborted");
+            if (debugTrace) {
+              console.log("[Debug] Request aborted before sending");
+            }
             resolve({
               success: false,
               cancelled: true,
@@ -133,6 +190,9 @@ export class AnthropicService {
             // Check if request was cancelled
             if (options.signal?.aborted) {
               console.log("[AnthropicService] Request was cancelled");
+              if (debugTrace) {
+                console.log("[Debug] Request cancelled during processing");
+              }
               resolve({
                 success: false,
                 cancelled: true,
@@ -146,6 +206,9 @@ export class AnthropicService {
                 "[AnthropicService] Runtime error:",
                 chrome.runtime.lastError
               );
+              if (debugTrace) {
+                console.log("[Debug] Runtime Error:", chrome.runtime.lastError);
+              }
               resolve({
                 success: false,
                 error: chrome.runtime.lastError.message,
@@ -155,6 +218,9 @@ export class AnthropicService {
 
             if (response.error) {
               console.error("[AnthropicService] API error:", response.error);
+              if (debugTrace) {
+                console.log("[Debug] API Error:", response.error);
+              }
               resolve({
                 success: false,
                 error: response.error,
@@ -163,6 +229,13 @@ export class AnthropicService {
             }
 
             console.log("[AnthropicService] Received successful response");
+            if (debugTrace) {
+              console.log("[Debug] API Response:", {
+                responseSize: JSON.stringify(response).length,
+                content: response.content,
+                usage: response.usage,
+              });
+            }
             resolve({
               success: true,
               text: response.content[0]?.text || "",
@@ -172,6 +245,9 @@ export class AnthropicService {
       });
     } catch (error) {
       console.error("[AnthropicService] Unexpected error:", error);
+      if (debugTrace) {
+        console.log("[Debug] Unexpected Error:", error);
+      }
       return {
         success: false,
         error: "An unexpected error occurred",
