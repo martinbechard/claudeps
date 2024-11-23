@@ -11,25 +11,13 @@ import {
   ParsedCommandLine as ParsedCommandText,
   StopCondition,
 } from "../types";
-import { parseStopConditionCommand } from "./commands/parseStopConditions";
 import {
   getCommandMatches,
   getCommandOptionDefinitions,
-  OptionType,
+  COMMAND_MAP,
 } from "./commands/CommandMap";
-import { parseRepeatCommand } from "./commands/parseRepeatCommand";
-import { parseAliasCommand } from "./commands/parseAliasCommand";
-import {
-  parseProjectCommand,
-  parseSearchProjectCommand,
-  parseQueryProjectCommand,
-} from "./commands/parseProjectCommands";
-import {
-  parseConversationCommand,
-  parseArtifactsCommand,
-} from "./commands/parseContentCommands";
+import { OptionType } from "./commands/BaseCommandInfo";
 import { splitTextWithQuotes } from "./splitText";
-import { parseKnowledgeCommand } from "./commands/parseKnowledgeCommand";
 
 export class ScriptParser {
   private static readonly COMMAND_PREFIX = "/";
@@ -110,12 +98,6 @@ export class ScriptParser {
    */
   private static parseStatement(text: string): ScriptStatement {
     const statementText = text.trim();
-
-    // Parse main statement (command or prompt)
-    /*let statement = statementText.startsWith(this.COMMAND_PREFIX)
-      ? this.parseCommandStatement(statementText)
-      : this.parsePromptStatement(statementText);
-*/
     const statement = this.parseCommandStatement(statementText);
     return statement;
   }
@@ -137,45 +119,32 @@ export class ScriptParser {
   private static parseCommandStatement(text: string): ScriptStatement {
     const parsed = this.parseCommandText(text);
 
-    switch (parsed.command) {
-      case "repeat":
-        return parseRepeatCommand(parsed);
-      case "stop_if":
-      case "stop_if_not":
-        return parseStopConditionCommand(parsed);
-      case "alias":
-      case "list_alias":
-      case "delete_alias":
-        return parseAliasCommand(parsed);
-      case "project":
-        return parseProjectCommand(parsed);
-      case "search_project":
-        return parseSearchProjectCommand(parsed);
-      case "query_project":
-        return parseQueryProjectCommand(parsed);
-      case "conversation":
-        return parseConversationCommand(parsed);
-      case "artifacts":
-        return parseArtifactsCommand(parsed);
-      case "knowledge":
-        return parseKnowledgeCommand(parsed);
-      case "prompt": {
-        const statement = this.parsePromptStatement(parsed.prompt);
-        const stopIfCondition = parsed?.options?.["stop_if"];
-        const stopIfNotCondition = parsed?.options?.["stop_if_not"];
-
-        if (stopIfCondition || stopIfNotCondition) {
-          statement.addStopCondition({
-            target: stopIfCondition || stopIfNotCondition,
-            type: stopIfCondition ? "if" : "if_not",
-          });
-        }
-
-        return statement;
+    // Try BaseCommandInfo's parse method first
+    const commandInfo = COMMAND_MAP[parsed.command];
+    if (commandInfo) {
+      const result = commandInfo.parse(parsed);
+      if (result !== null) {
+        return result;
       }
-      default:
-        throw new Error(`Unhandled command: ${parsed.command}`);
     }
+
+    // Handle prompt command separately since it's special
+    if (parsed.command === "prompt") {
+      const statement = this.parsePromptStatement(parsed.prompt);
+      const stopIfCondition = parsed?.options?.["stop_if"];
+      const stopIfNotCondition = parsed?.options?.["stop_if_not"];
+
+      if (stopIfCondition || stopIfNotCondition) {
+        statement.addStopCondition({
+          target: stopIfCondition || stopIfNotCondition,
+          type: stopIfCondition ? "if" : "if_not",
+        });
+      }
+
+      return statement;
+    }
+
+    throw new Error(`Unhandled command: ${parsed.command}`);
   }
 
   /**

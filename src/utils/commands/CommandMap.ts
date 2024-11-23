@@ -7,91 +7,51 @@
  * Defines commands and their options
  */
 
-/**
- * Type of argument required for an option
- */
-export type OptionType = "no_arg" | "with_arg" | "with_prompt";
-
-/**
- * Option format:
- * key: option name
- * value: OptionType indicating argument requirement
- */
-type CommandOptionDefinitions = { [key: string]: OptionType };
-
-/**
- * Base command info without options
- */
-interface BaseCommandInfo {
-  full: string;
-  abbreviation: string;
-  options?: CommandOptionDefinitions;
-}
+import { BaseCommandInfo, OptionType } from "./BaseCommandInfo";
+import { KnowledgeCommand } from "./knowledgeCommand";
+import { RepeatCommand } from "./repeatCommand";
+import {
+  SetAliasCommand,
+  DeleteAliasCommand,
+  ListAliasCommand,
+} from "./aliasCommands";
+import { ConversationCommand, ArtifactsCommand } from "./contentCommands";
+import {
+  ProjectCommand,
+  SearchProjectCommand,
+  QueryProjectCommand,
+} from "./projectCommands";
+import { StopIfCommand, StopIfNotCommand } from "./stopConditionCommands";
 
 /**
  * Maps command names to their full names, abbreviations and allowed options
  */
 export const COMMAND_MAP: { [key: string]: BaseCommandInfo } = {
   // Basic commands
-  repeat: {
-    full: "repeat",
-    abbreviation: "r",
-    options: {
-      max: "with_arg", // Requires number argument
-      stop_if: "with_prompt", // Requires condition text
-      stop_if_not: "with_prompt", // Requires condition text
-    },
-  },
-
-  prompt: {
-    full: "prompt",
-    abbreviation: "",
-    options: {
-      stop_if: "with_prompt", // Requires condition text
-      stop_if_not: "with_prompt", // Requires condition text
-    },
-  },
+  repeat: new RepeatCommand(),
+  prompt: new BaseCommandInfo("prompt", "", {
+    stop_if: "with_prompt", // Requires condition text
+    stop_if_not: "with_prompt", // Requires condition text
+  }),
 
   // Content commands
-  conversation: {
-    full: "conversation",
-    abbreviation: "c",
-    options: {
-      artifacts: "no_arg", // Flag only
-      a: "no_arg", // Flag only
-      multiple: "no_arg", // Flag only
-      m: "no_arg", // Flag only
-    },
-  },
+  conversation: new ConversationCommand(),
+  artifacts: new ArtifactsCommand(),
 
-  stop_if: {
-    full: "stop_if",
-    abbreviation: "",
-  },
+  // Stop condition commands
+  stop_if: new StopIfCommand(),
+  stop_if_not: new StopIfNotCommand(),
 
-  stop_if_not: {
-    full: "stop_if_not",
-    abbreviation: "",
-  },
+  // Project commands
+  project: new ProjectCommand(),
+  search_project: new SearchProjectCommand(),
+  query_project: new QueryProjectCommand(),
+  knowledge: new KnowledgeCommand(),
 
-  artifacts: {
-    full: "artifacts",
-    abbreviation: "a",
-    options: {
-      multiple: "no_arg", // Flag only
-    },
-  },
-
-  // Project commands with no options
-  knowledge: { full: "knowledge", abbreviation: "k" },
-  project: { full: "project", abbreviation: "p" },
-  search_project: { full: "search_project", abbreviation: "sp" },
-  query_project: { full: "query_project", abbreviation: "qp" },
-
-  // Alias commands (with @ syntax support)
-  alias: { full: "alias", abbreviation: "@+" },
-  list_alias: { full: "list_alias", abbreviation: "@?" },
-  delete_alias: { full: "delete_alias", abbreviation: "@-" },
+  // Alias commands
+  alias: new SetAliasCommand(),
+  list_alias: new ListAliasCommand(),
+  delete_alias: new DeleteAliasCommand(),
 } as const;
 
 export type CommandName = keyof typeof COMMAND_MAP;
