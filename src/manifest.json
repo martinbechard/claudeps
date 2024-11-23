@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "ClaudePS Extension",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Enhances interaction with Claude AI interface",
   "permissions": ["activeTab", "scripting", "storage", "downloads"],
   "host_permissions": ["https://claude.ai/*", "https://api.anthropic.com/*"],

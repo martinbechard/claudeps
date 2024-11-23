@@ -1,7 +1,7 @@
 {
   "name": "claudeps-extension",
-  "version": "1.0.1",
-  "description": "Chrome extension for Claude",
+  "version": "1.0.2",
+  "description": "Chrome extension for Claude with PromptScript support",
   "scripts": {
     "build": "webpack --mode=production",
     "build:debug": "webpack --mode=development",
