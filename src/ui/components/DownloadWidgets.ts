@@ -286,8 +286,10 @@ export function createButtonContainer(): HTMLDivElement {
   const container = document.createElement("div");
   container.style.cssText = `
     display: flex;
+    flex-direction: row;
     gap: ${baseStyles.spacing.md};
     margin-top: ${baseStyles.spacing.lg};
+    justify-content: flex-start;
   `;
   return container;
 }

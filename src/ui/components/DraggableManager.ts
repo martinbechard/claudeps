@@ -6,6 +6,7 @@
  */
 
 import { WindowStateService } from "../../services/WindowStateService";
+import { trace, DEBUG_KEYS } from "../../utils/trace";
 
 /**
  * Configuration for draggable bounds.
@@ -67,6 +68,26 @@ export class DraggableManager {
    * @param e - Mouse event
    */
   private handleMouseDown(e: MouseEvent): void {
+    trace(DEBUG_KEYS.WINDOW, "DraggableManager.handleMouseDown Enter", {
+      x: e.clientX,
+      y: e.clientY,
+    });
+    const target = e.target as HTMLElement;
+
+    // Don't initiate drag if clicking on a button or any interactive element
+    if (
+      target.tagName.toLowerCase() === "button" ||
+      target.closest("button") ||
+      target.hasAttribute("data-command")
+    ) {
+      trace(
+        DEBUG_KEYS.WINDOW,
+        "DraggableManager.handleMouseDown Exit - clicked on button/interactive element"
+      );
+      return;
+    }
+
+    // Only allow dragging from the handle area (status bar)
     if (e.target === this.handle || this.handle.contains(e.target as Node)) {
       this.isDragging = true;
 
@@ -74,6 +95,11 @@ export class DraggableManager {
       const pos = this.getWindowPosition();
       this.startX = pos.x;
       this.startY = pos.y;
+      trace(
+        DEBUG_KEYS.WINDOW,
+        "DraggableManager.handleMouseDown Starting position:",
+        pos
+      );
 
       // Calculate the initial mouse offset
       this.initialX = e.clientX - this.startX;
@@ -87,7 +113,12 @@ export class DraggableManager {
       // Set initial position explicitly
       this.window.style.left = `${this.startX}px`;
       this.window.style.top = `${this.startY}px`;
+      trace(
+        DEBUG_KEYS.WINDOW,
+        "DraggableManager.handleMouseDown Initial styles set"
+      );
     }
+    trace(DEBUG_KEYS.WINDOW, "DraggableManager.handleMouseDown Exit");
   }
 
   /**
@@ -97,6 +128,10 @@ export class DraggableManager {
   private handleMouseMove(e: MouseEvent): void {
     if (!this.isDragging) return;
 
+    trace(DEBUG_KEYS.WINDOW, "DraggableManager.handleMouseMove Enter", {
+      x: e.clientX,
+      y: e.clientY,
+    });
     e.preventDefault();
     this.currentX = e.clientX - this.initialX;
     this.currentY = e.clientY - this.initialY;
@@ -106,6 +141,11 @@ export class DraggableManager {
 
     this.window.style.left = `${this.currentX}px`;
     this.window.style.top = `${this.currentY}px`;
+    trace(DEBUG_KEYS.WINDOW, "DraggableManager.handleMouseMove New position:", {
+      x: this.currentX,
+      y: this.currentY,
+    });
+    trace(DEBUG_KEYS.WINDOW, "DraggableManager.handleMouseMove Exit");
   }
 
   /**
@@ -134,22 +174,36 @@ export class DraggableManager {
    * Handles the end of a drag operation.
    */
   private handleMouseUp(): void {
-    if (this.isDragging) {
-      // Save position when drag ends
-      WindowStateService.savePosition(this.currentX, this.currentY);
+    trace(DEBUG_KEYS.WINDOW, "DraggableManager.handleMouseUp Enter");
+    if (!!this.isDragging) {
+      // Get the final absolute position by using getBoundingClientRect
+      const finalPosition = this.getWindowPosition();
+      trace(
+        DEBUG_KEYS.WINDOW,
+        "DraggableManager.handleMouseUp Final position:",
+        finalPosition
+      );
+      WindowStateService.savePosition(finalPosition.x, finalPosition.y);
+      trace(DEBUG_KEYS.WINDOW, "DraggableManager.handleMouseUp Position saved");
     }
     this.isDragging = false;
+    trace(DEBUG_KEYS.WINDOW, "DraggableManager.handleMouseUp Exit");
   }
 
   /**
    * Removes all event listeners.
    */
   public destroy(): void {
+    trace(DEBUG_KEYS.WINDOW, "DraggableManager.destroy Enter");
     this.handle.removeEventListener(
       "mousedown",
       this.handleMouseDown.bind(this)
     );
     document.removeEventListener("mousemove", this.handleMouseMove.bind(this));
     document.removeEventListener("mouseup", this.handleMouseUp.bind(this));
+    trace(
+      DEBUG_KEYS.WINDOW,
+      "DraggableManager.destroy Exit - All listeners removed"
+    );
   }
 }

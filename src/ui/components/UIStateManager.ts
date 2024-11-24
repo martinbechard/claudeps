@@ -11,145 +11,327 @@
 import type { StatusManager } from "./StatusManager";
 import type { FloatingWindowElements } from "../../types";
 import { WindowStateService } from "../../services/WindowStateService";
+import { StorageService } from "../../services/StorageService";
+import { trace, DEBUG_KEYS } from "../../utils/trace";
 
 export class UIStateManager {
   private readonly elements: FloatingWindowElements;
   private readonly statusManager: StatusManager;
-  private isMinimized: boolean = false;
-  private isCollapsed: boolean = false;
-  private resizeObserver: ResizeObserver | null = null;
+  private isMinimized: boolean;
+  private isCollapsed: boolean;
+  private resizeObserver: ResizeObserver | null;
+  private lastWidth: string;
+  private lastHeight: string;
 
   constructor(elements: FloatingWindowElements, statusManager: StatusManager) {
+    trace(DEBUG_KEYS.WINDOW, "UIStateManager.constructor Enter");
     this.elements = elements;
     this.statusManager = statusManager;
-    this.bindKeyboardEvents();
+    // Initialize all private members
+    this.isMinimized = false;
+    this.isCollapsed = false;
+    this.resizeObserver = null;
+    this.lastWidth = "";
+    this.lastHeight = "";
+
     this.setupResizeObserver();
+    this.initializeWindowState();
+    trace(DEBUG_KEYS.WINDOW, "UIStateManager.constructor Exit");
+  }
+
+  /**
+   * Initializes window state from saved state
+   */
+  private async initializeWindowState(): Promise<void> {
+    trace(DEBUG_KEYS.WINDOW, "UIStateManager.initializeWindowState Enter");
+    const state = await WindowStateService.loadState();
+    trace(
+      DEBUG_KEYS.WINDOW,
+      "UIStateManager.initializeWindowState Loading state:",
+      state
+    );
+
+    // Apply window state
+    await WindowStateService.applyState(this.elements.window);
+    trace(
+      DEBUG_KEYS.WINDOW,
+      "UIStateManager.initializeWindowState State applied to window"
+    );
+
+    // Update local state
+    this.isMinimized = state.isMinimized;
+    this.isCollapsed = state.isCollapsed;
+
+    // Initialize last known dimensions
+    this.lastWidth = this.elements.window.style.width;
+    this.lastHeight = this.elements.window.style.height;
+    trace(
+      DEBUG_KEYS.WINDOW,
+      "UIStateManager.initializeWindowState Initial dimensions:",
+      {
+        width: this.lastWidth,
+        height: this.lastHeight,
+      }
+    );
+
+    // Update minimize button state
+    this.updateMinimizeButtonState();
+
+    // Update collapse button state
+    this.elements.collapseButton.textContent = this.isCollapsed ? "▶" : "▼";
+    this.elements.collapseButton.title = this.isCollapsed
+      ? "Expand"
+      : "Collapse";
+    trace(
+      DEBUG_KEYS.WINDOW,
+      "UIStateManager.initializeWindowState Exit - Current state:",
+      {
+        isMinimized: this.isMinimized,
+        isCollapsed: this.isCollapsed,
+      }
+    );
+  }
+
+  /**
+   * Updates minimize button appearance based on current state
+   */
+  private updateMinimizeButtonState(): void {
+    trace(DEBUG_KEYS.WINDOW, "UIStateManager.updateMinimizeButtonState Enter");
+    // When minimized, show expand button
+    // When expanded, show minimize button
+    this.elements.minimizeButton.textContent = this.isMinimized ? "□" : "_";
+    this.elements.minimizeButton.title = this.isMinimized
+      ? "Expand"
+      : "Minimize";
+    trace(
+      DEBUG_KEYS.WINDOW,
+      "UIStateManager.updateMinimizeButtonState Exit - Button updated:",
+      {
+        isMinimized: this.isMinimized,
+      }
+    );
   }
 
   /**
    * Sets up observer for window size changes
    */
   private setupResizeObserver(): void {
+    trace(DEBUG_KEYS.WINDOW, "UIStateManager.setupResizeObserver Enter");
     if (typeof ResizeObserver === "undefined") {
       console.warn("ResizeObserver not supported in this browser");
       return;
     }
 
     this.resizeObserver = new ResizeObserver((entries) => {
-      for (const entry of entries) {
-        const element = entry.target as HTMLElement;
-        if (!this.isMinimized) {
-          WindowStateService.saveGeometry(
-            element.style.width,
-            element.style.height
-          );
+      trace(
+        DEBUG_KEYS.WINDOW,
+        "UIStateManager.resizeObserver Resize detected, current state:",
+        {
+          isMinimized: this.isMinimized,
         }
+      );
+
+      // Get the last entry since we only care about final size
+      const lastEntry = entries[entries.length - 1];
+      const element = lastEntry.target as HTMLElement;
+      const newWidth = element.style.width;
+      const newHeight = element.style.height;
+
+      // Skip geometry save if minimized
+      if (this.isMinimized) {
+        trace(
+          DEBUG_KEYS.WINDOW,
+          "UIStateManager.resizeObserver Window is minimized, skipping geometry save"
+        );
+        return;
+      }
+
+      // Only save if dimensions actually changed
+      if (newWidth !== this.lastWidth || newHeight !== this.lastHeight) {
+        trace(
+          DEBUG_KEYS.WINDOW,
+          "UIStateManager.resizeObserver Dimensions changed:",
+          {
+            oldWidth: this.lastWidth,
+            oldHeight: this.lastHeight,
+            newWidth,
+            newHeight,
+          }
+        );
+        this.lastWidth = newWidth;
+        this.lastHeight = newHeight;
+        WindowStateService.saveGeometry(newWidth, newHeight);
+        trace(
+          DEBUG_KEYS.WINDOW,
+          "UIStateManager.resizeObserver New geometry saved"
+        );
       }
     });
 
     this.resizeObserver.observe(this.elements.window);
+    trace(
+      DEBUG_KEYS.WINDOW,
+      "UIStateManager.setupResizeObserver Observer attached to window"
+    );
 
     // Also observe script textarea height
     const scriptContainer = this.elements.scriptText.parentElement;
     if (scriptContainer) {
+      trace(
+        DEBUG_KEYS.WINDOW,
+        "UIStateManager.setupResizeObserver Setting up script container observer"
+      );
       const scriptObserver = new ResizeObserver((entries) => {
-        for (const entry of entries) {
-          const element = entry.target as HTMLElement;
-          WindowStateService.saveScriptHeight(element.style.height);
+        trace(
+          DEBUG_KEYS.WINDOW,
+          "UIStateManager.scriptObserver Script area resize detected, minimized state:",
+          this.isMinimized
+        );
+
+        // Skip if minimized
+        if (this.isMinimized) {
+          trace(
+            DEBUG_KEYS.WINDOW,
+            "UIStateManager.scriptObserver Window is minimized, skipping script height save"
+          );
+          return;
         }
+
+        // Get the last entry
+        const lastEntry = entries[entries.length - 1];
+        const element = lastEntry.target as HTMLElement;
+        WindowStateService.saveScriptHeight(element.style.height);
+        trace(
+          DEBUG_KEYS.WINDOW,
+          "UIStateManager.scriptObserver Script height saved:",
+          element.style.height
+        );
       });
       scriptObserver.observe(scriptContainer);
+      trace(
+        DEBUG_KEYS.WINDOW,
+        "UIStateManager.setupResizeObserver Script observer attached"
+      );
     }
+    trace(DEBUG_KEYS.WINDOW, "UIStateManager.setupResizeObserver Exit");
   }
 
   /**
-   * Binds keyboard events for the script input
+   * Updates window minimize state and UI
    */
-  private bindKeyboardEvents(): void {
-    this.elements.scriptText.addEventListener("keydown", (e: KeyboardEvent) => {
-      // Run script on Enter without shift
-      if (e.key === "Enter" && !e.shiftKey) {
-        e.preventDefault();
-        this.elements.runButton.click();
-      }
-
-      // Allow new line on Shift+Enter
-      else if (e.key === "Enter" && e.shiftKey) {
-        // Default behavior will add new line
-        return;
-      }
-
-      // Cancel on Escape when script is running
-      else if (
-        e.key === "Escape" &&
-        this.statusManager.getCurrentState() === "working"
-      ) {
-        e.preventDefault();
-        this.elements.runButton.click(); // Will trigger cancel in working state
-      }
+  private async setMinimizedState(shouldMinimize: boolean): Promise<void> {
+    trace(DEBUG_KEYS.WINDOW, "UIStateManager.setMinimizedState Enter:", {
+      shouldMinimize,
+      currentlyMinimized: this.isMinimized,
     });
-  }
 
-  /**
-   * Toggles the minimize state of the window
-   */
-  public toggleMinimize(): void {
-    this.isMinimized = !this.isMinimized;
+    // Update state first so observers see correct state
+    this.isMinimized = shouldMinimize;
 
-    // Save current dimensions before toggling
-    const currentWidth = this.elements.window.style.width;
-    const currentHeight = this.elements.window.style.height;
-
-    if (this.isMinimized) {
-      // Store dimensions for restoration
-      if (currentWidth && currentHeight) {
-        this.elements.window.dataset.prevWidth = currentWidth;
-        this.elements.window.dataset.prevHeight = currentHeight;
-      }
-      // Clear dimensions to allow shrinking
+    if (shouldMinimize) {
+      // Minimize the window
+      trace(
+        DEBUG_KEYS.WINDOW,
+        "UIStateManager.setMinimizedState Minimizing window"
+      );
       this.elements.window.style.width = "";
       this.elements.window.style.height = "";
+      this.elements.window.classList.add("minimized");
     } else {
-      // Restore previous dimensions if they exist
-      const prevWidth = this.elements.window.dataset.prevWidth;
-      const prevHeight = this.elements.window.dataset.prevHeight;
-      if (prevWidth && prevHeight) {
-        this.elements.window.style.width = prevWidth;
-        this.elements.window.style.height = prevHeight;
+      // Expand the window
+      trace(
+        DEBUG_KEYS.WINDOW,
+        "UIStateManager.setMinimizedState Expanding window"
+      );
+      this.elements.window.classList.remove("minimized");
 
-        // Save restored dimensions
-        WindowStateService.saveGeometry(prevWidth, prevHeight);
-      }
+      // Load saved state (will use default values of 400x500 if no state exists)
+      const state = await WindowStateService.loadState();
+      trace(
+        DEBUG_KEYS.WINDOW,
+        "UIStateManager.setMinimizedState Using dimensions:",
+        {
+          width: state.width,
+          height: state.height,
+          isFromSavedState: !!(await StorageService.get(
+            "claude_extension_window_state"
+          )),
+        }
+      );
+      this.elements.window.style.width = state.width; // Default: 400px
+      this.elements.window.style.height = state.height; // Default: 500px
     }
 
-    // Toggle minimized class for CSS styling
-    this.elements.window.classList.toggle("minimized", this.isMinimized);
-    this.elements.minimizeButton.textContent = this.isMinimized ? "□" : "_";
-    this.elements.minimizeButton.title = this.isMinimized
-      ? "Restore"
-      : "Minimize";
+    // Update button appearance
+    this.updateMinimizeButtonState();
 
     // Save window state
     WindowStateService.saveWindowState(this.isMinimized, this.isCollapsed);
+    trace(
+      DEBUG_KEYS.WINDOW,
+      "UIStateManager.setMinimizedState Window state saved"
+    );
+    trace(
+      DEBUG_KEYS.WINDOW,
+      "UIStateManager.setMinimizedState Exit - New state:",
+      {
+        isMinimized: this.isMinimized,
+      }
+    );
+  }
+
+  /**
+   * Handles minimize/expand button click
+   */
+  public handleMinimizeClick(): void {
+    trace(DEBUG_KEYS.WINDOW, "UIStateManager.handleMinimizeClick Enter");
+    // If showing minimize button ("_"), minimize the window
+    // If showing expand button ("□"), expand the window
+    const shouldMinimize = this.elements.minimizeButton.textContent === "_";
+    trace(DEBUG_KEYS.WINDOW, "UIStateManager.handleMinimizeClick Action:", {
+      shouldMinimize,
+      currentlyMinimized: this.isMinimized,
+    });
+    this.setMinimizedState(shouldMinimize);
+    trace(DEBUG_KEYS.WINDOW, "UIStateManager.handleMinimizeClick Exit");
   }
 
   /**
    * Toggles the collapse state of the output panel
    */
   public toggleCollapse(): void {
+    trace(DEBUG_KEYS.WINDOW, "UIStateManager.toggleCollapse Enter");
     this.isCollapsed = !this.isCollapsed;
+    trace(DEBUG_KEYS.WINDOW, "UIStateManager.toggleCollapse New state:", {
+      isCollapsed: this.isCollapsed,
+      isMinimized: this.isMinimized,
+    });
 
     if (this.isCollapsed) {
+      trace(
+        DEBUG_KEYS.WINDOW,
+        "UIStateManager.toggleCollapse Collapsing output panel"
+      );
       // Store current window height for restoration
       const currentWindowHeight = this.elements.window.style.height;
       if (currentWindowHeight) {
         this.elements.window.dataset.prevHeight = currentWindowHeight;
+        trace(
+          DEBUG_KEYS.WINDOW,
+          "UIStateManager.toggleCollapse Stored previous height:",
+          currentWindowHeight
+        );
       }
 
       // Store output height for restoration
       const currentOutputHeight = this.elements.output.style.height;
       if (currentOutputHeight) {
         this.elements.output.dataset.prevHeight = currentOutputHeight;
+        trace(
+          DEBUG_KEYS.WINDOW,
+          "UIStateManager.toggleCollapse Stored previous output height:",
+          currentOutputHeight
+        );
       }
 
       // Collapse output area
@@ -160,17 +342,31 @@ export class UIStateManager {
       this.elements.window.style.height = "auto";
       this.elements.window.style.minHeight = "auto";
     } else {
+      trace(
+        DEBUG_KEYS.WINDOW,
+        "UIStateManager.toggleCollapse Expanding output panel"
+      );
       // Restore window height
       const prevWindowHeight = this.elements.window.dataset.prevHeight;
       if (prevWindowHeight) {
         this.elements.window.style.height = prevWindowHeight;
         this.elements.window.style.minHeight = "200px"; // Restore default min-height
+        trace(
+          DEBUG_KEYS.WINDOW,
+          "UIStateManager.toggleCollapse Restored window height:",
+          prevWindowHeight
+        );
       }
 
       // Restore output height
       const prevOutputHeight = this.elements.output.dataset.prevHeight;
       if (prevOutputHeight) {
         this.elements.output.style.height = prevOutputHeight;
+        trace(
+          DEBUG_KEYS.WINDOW,
+          "UIStateManager.toggleCollapse Restored output height:",
+          prevOutputHeight
+        );
       }
       this.elements.output.style.maxHeight = "";
       this.elements.output.style.overflowY = "auto";
@@ -183,13 +379,32 @@ export class UIStateManager {
 
     // Save window state
     WindowStateService.saveWindowState(this.isMinimized, this.isCollapsed);
-    const windowHeight = this.elements.window.style.height;
-    if (windowHeight) {
-      WindowStateService.saveGeometry(
-        this.elements.window.style.width,
-        windowHeight
+
+    // Only save geometry if not minimized
+    if (!this.isMinimized) {
+      const windowHeight = this.elements.window.style.height;
+      if (windowHeight) {
+        WindowStateService.saveGeometry(
+          this.elements.window.style.width,
+          windowHeight
+        );
+        trace(
+          DEBUG_KEYS.WINDOW,
+          "UIStateManager.toggleCollapse Saved new geometry:",
+          {
+            width: this.elements.window.style.width,
+            height: windowHeight,
+          }
+        );
+      }
+    } else {
+      trace(
+        DEBUG_KEYS.WINDOW,
+        "UIStateManager.toggleCollapse Window is minimized, skipping geometry save"
       );
     }
+
+    trace(DEBUG_KEYS.WINDOW, "UIStateManager.toggleCollapse Exit");
   }
 
   /**
@@ -239,9 +454,14 @@ export class UIStateManager {
    * Cleans up resources
    */
   public destroy(): void {
+    trace(DEBUG_KEYS.WINDOW, "UIStateManager.destroy Enter");
     if (this.resizeObserver) {
       this.resizeObserver.disconnect();
     }
+    trace(
+      DEBUG_KEYS.WINDOW,
+      "UIStateManager.destroy Exit - Resources cleaned up"
+    );
   }
 
   /**

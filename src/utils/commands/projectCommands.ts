@@ -5,18 +5,12 @@
  */
 
 import { ParsedCommandLine, ScriptStatement } from "../../types";
-import { BaseCommandInfo } from "./BaseCommandInfo";
+import { BaseCommandInfo, ExecuteParams } from "./BaseCommandInfo";
+import { ProjectRetrieval } from "../../services/ProjectRetrieval";
+import { ProjectSearchService } from "../../services/ProjectSearchService";
+import { PromptAll } from "../../services/PromptAll";
 
-/**
- * Base class for project-related commands
- */
-abstract class ProjectCommandBase extends BaseCommandInfo {
-  constructor(full: string, abbreviation: string) {
-    super(full, abbreviation);
-  }
-}
-
-export class ProjectCommand extends ProjectCommandBase {
+export class ProjectCommand extends BaseCommandInfo {
   constructor() {
     super("project", "p");
   }
@@ -28,48 +22,103 @@ export class ProjectCommand extends ProjectCommandBase {
       prompt: parsedCommandLine.prompt.trim(),
     });
   }
+
+  public override async execute(params: ExecuteParams): Promise<boolean> {
+    try {
+      const outputElement = document.querySelector(
+        ".output-container"
+      ) as HTMLElement;
+      if (!outputElement) {
+        throw new Error("Output element not found");
+      }
+
+      outputElement.innerHTML = "";
+      await ProjectRetrieval.displayCurrentProject(outputElement);
+      return true;
+    } catch (error) {
+      console.error("Project command execution failed:", error);
+      return false;
+    }
+  }
 }
 
-export class SearchProjectCommand extends ProjectCommandBase {
+export class SearchProjectCommand extends BaseCommandInfo {
   constructor() {
     super("search_project", "sp");
   }
 
   public parse(parsedCommandLine: ParsedCommandLine): ScriptStatement {
-    const { prompt, options } = parsedCommandLine;
-
-    if (!prompt.trim()) {
-      throw new Error("Search project command requires search text");
-    }
-
     return new ScriptStatement({
       isCommand: true,
       command: "search_project",
-      searchText: prompt.trim(),
-      options: {
-        numResults: options.numResults || "5", // Default to 5 results if not specified
-      },
+      searchText: parsedCommandLine.prompt.trim(),
     });
+  }
+
+  public override async execute(params: ExecuteParams): Promise<boolean> {
+    try {
+      const outputElement = document.querySelector(
+        ".output-container"
+      ) as HTMLElement;
+      if (!outputElement) {
+        throw new Error("Output element not found");
+      }
+
+      outputElement.innerHTML = "";
+      await ProjectSearchService.searchAndDisplayResults(
+        params.statement.searchText,
+        outputElement
+      );
+      return true;
+    } catch (error) {
+      console.error("Search project command execution failed:", error);
+      return false;
+    }
   }
 }
 
-export class QueryProjectCommand extends ProjectCommandBase {
+export class QueryProjectCommand extends BaseCommandInfo {
   constructor() {
     super("query_project", "qp");
   }
 
   public parse(parsedCommandLine: ParsedCommandLine): ScriptStatement {
-    const { prompt } = parsedCommandLine;
-
-    if (!prompt.trim()) {
-      throw new Error("Query project command requires a prompt");
-    }
-
     return new ScriptStatement({
       isCommand: true,
       command: "query_project",
-      options: {},
-      prompt: prompt.trim(),
+      prompt: parsedCommandLine.prompt.trim(),
     });
+  }
+
+  public override async execute(params: ExecuteParams): Promise<boolean> {
+    try {
+      const outputElement = document.querySelector(
+        ".output-container"
+      ) as HTMLElement;
+      if (!outputElement) {
+        throw new Error("Output element not found");
+      }
+
+      if (
+        !params.statement.prompt ||
+        params.statement.prompt.trim().length === 0
+      ) {
+        throw new Error("No prompt provided for query_project command");
+      }
+
+      outputElement.innerHTML = "";
+      await PromptAll.queryAndDisplayResults(
+        params.statement.prompt,
+        outputElement,
+        async (status) => {
+          // Status updates would be handled by the UI
+          console.log(status);
+        }
+      );
+      return true;
+    } catch (error) {
+      console.error("Query project command execution failed:", error);
+      return false;
+    }
   }
 }

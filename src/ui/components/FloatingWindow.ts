@@ -10,6 +10,7 @@ import { WindowStateService } from "../../services/WindowStateService";
 import { SettingsService } from "../../services/SettingsService";
 import { HelpManager } from "./HelpManager";
 import { UIStateManager } from "./UIStateManager";
+import { simpleCommands } from "../../utils/commands/simpleCommands";
 
 /**
  * Manages the floating window interface for the extension.
@@ -19,6 +20,24 @@ export class FloatingWindow {
   private outputDiv: HTMLElement | null = null;
   private uiStateManager: UIStateManager | null = null;
   private helpManager: HelpManager | null = null;
+
+  private generateSimpleButtons(): string {
+    return `
+      <div class="simple-buttons" style="display: flex; gap: 8px; margin-bottom: 10px;">
+        ${simpleCommands
+          .map(
+            (cmd) => `
+          <button 
+            class="command-button ${cmd.className || ""}" 
+            data-command="${cmd.command}"
+            ${cmd.noAutoRun ? 'data-no-auto-run="true"' : ""}
+          >${cmd.label}</button>
+        `
+          )
+          .join("")}
+      </div>
+    `;
+  }
 
   private readonly template = `
     <div class="floating-window">
@@ -55,13 +74,7 @@ Your prompt here"></textarea>
           <button id="runScript">Run Script</button>
         </div>
         <div class="simple-mode">
-          <div class="simple-buttons" style="display: flex; gap: 8px; margin-bottom: 10px;">
-            <button class="command-button search-button" data-command="/search_project " data-no-auto-run="true">Search</button>
-            <button class="command-button project-button" data-command="/project">Project</button>
-            <button class="command-button" data-command="/conversation">Conversation</button>
-            <button class="command-button" data-command="/artifacts">Artifacts</button>
-            <button class="command-button" data-command="/knowledge">Knowledge</button>
-          </div>
+          ${this.generateSimpleButtons()}
           <div class="project-search-container">
             <input type="text" class="project-search-input" placeholder="Enter search criteria..." />
             <button class="project-search-glyph">🔍</button>
@@ -100,9 +113,6 @@ Your prompt here"></textarea>
 
     // Initialize help manager
     this.helpManager = new HelpManager(this.outputDiv);
-
-    // Restore saved window state
-    WindowStateService.applyState(this.element);
 
     // Set up resize functionality
     this.setupResizeHandles();
@@ -308,7 +318,7 @@ Your prompt here"></textarea>
     );
 
     elements.minimizeButton.addEventListener("click", () =>
-      this.uiStateManager?.toggleMinimize()
+      this.uiStateManager?.handleMinimizeClick()
     );
 
     elements.collapseButton.addEventListener("click", () =>
@@ -365,13 +375,6 @@ Your prompt here"></textarea>
    * Removes the floating window from the DOM.
    */
   public destroy(): void {
-    // Save window state before removal
-    if (this.element) {
-      WindowStateService.saveGeometry(
-        this.element.style.width,
-        this.element.style.height
-      );
-    }
     this.element?.parentElement?.remove();
     this.element = null;
     this.outputDiv = null;

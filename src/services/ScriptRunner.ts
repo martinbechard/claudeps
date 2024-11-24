@@ -7,6 +7,7 @@
 
 import type { Script, ScriptStatement, StopCondition } from "../types";
 import { CommandExecutor } from "./CommandExecutor";
+import { COMMAND_MAP } from "../utils/commands/CommandMap";
 
 /**
  * Callback type for logging output from the script runner.
@@ -48,28 +49,17 @@ export class ScriptRunner {
       throw new Error("No command specified");
     }
 
-    switch (script.command) {
-      case "knowledge":
-        await this.commandExecutor.handleKnowledgeCommand();
-        break;
-      case "project":
-        await this.commandExecutor.handleProjectCommand();
-        break;
-      case "search_project":
-        await this.commandExecutor.handleSearchProjectCommand(script);
-        break;
-      case "query_project":
-        await this.commandExecutor.handleQueryProjectCommand(script);
-        break;
-      case "conversation":
-      case "artifacts":
-        await this.commandExecutor.handleConversationCommand(
-          script.options || {}
-        );
-        break;
-      default:
-        throw new Error(`Unknown command: ${script.command}`);
+    // Try to execute using command class first
+    const commandInfo = COMMAND_MAP[script.command];
+    if (commandInfo) {
+      const success = await commandInfo.execute({ statement: script });
+      if (success) {
+        return;
+      }
     }
+
+    // If we get here, no command class handled it
+    throw new Error(`Unknown command: ${script.command}`);
   }
 
   /**

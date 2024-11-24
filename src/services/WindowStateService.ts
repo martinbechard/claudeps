@@ -9,6 +9,7 @@
  */
 
 import { StorageService } from "./StorageService";
+import { trace, DEBUG_KEYS } from "../utils/trace";
 
 interface WindowGeometry {
   x: number;
@@ -26,7 +27,7 @@ export class WindowStateService {
   private static readonly DEFAULT_STATE: WindowGeometry = {
     x: 20,
     y: 20,
-    width: "400px",
+    width: "500px",
     height: "500px",
     isMinimized: false,
     isCollapsed: false,
@@ -34,29 +35,73 @@ export class WindowStateService {
     isScriptMode: false,
   };
 
+  private static cachedState: WindowGeometry | undefined;
+
   /**
-   * Loads the saved window state from storage
+   * Loads the saved window state from storage or cache
    */
   public static async loadState(): Promise<WindowGeometry> {
     try {
-      const savedState = undefined; /* await StorageService.get<WindowGeometry>(
+      // Return cached state if available
+      if (this.cachedState) {
+        return this.cachedState;
+      }
+
+      // Load from storage if no cached state
+      const savedState = await StorageService.get<WindowGeometry>(
         this.STORAGE_KEY
-      );*/
-      return savedState || { ...this.DEFAULT_STATE };
+      );
+      trace(
+        DEBUG_KEYS.WINDOW,
+        "WindowStateService Loading state from storage:",
+        savedState
+      );
+
+      // Cache and return the loaded state
+      this.cachedState = savedState || { ...this.DEFAULT_STATE };
+      return this.cachedState;
     } catch (error) {
       console.error("Failed to load window state:", error);
-      return { ...this.DEFAULT_STATE };
+      this.cachedState = { ...this.DEFAULT_STATE };
+      return this.cachedState;
     }
   }
 
   /**
-   * Saves the current window state to storage
+   * Updates window state, optionally persisting to storage and cache
    */
   public static async saveState(state: Partial<WindowGeometry>): Promise<void> {
     try {
-      const currentState = await this.loadState();
-      const newState = { ...currentState, ...state };
-      await StorageService.set(this.STORAGE_KEY, newState);
+      // Get current state from cache or load it
+      const currentState = this.cachedState || (await this.loadState());
+
+      // Check if any values are different
+      let hasChanges = false;
+      for (const [key, value] of Object.entries(state)) {
+        if (currentState[key as keyof WindowGeometry] !== value) {
+          hasChanges = true;
+          trace(
+            DEBUG_KEYS.WINDOW,
+            `WindowStateService State change: ${key} = ${value}`
+          );
+          break;
+        }
+      }
+
+      // Only update if there are actual changes
+      if (hasChanges) {
+        const newState = { ...currentState, ...state };
+
+        trace(
+          DEBUG_KEYS.WINDOW,
+          "WindowStateService Updating cache and storage:",
+          newState
+        );
+        this.cachedState = newState;
+        await StorageService.set(this.STORAGE_KEY, newState);
+      } else {
+        trace(DEBUG_KEYS.WINDOW, "WindowStateService No changes to save");
+      }
     } catch (error) {
       console.error("Failed to save window state:", error);
     }
@@ -67,14 +112,14 @@ export class WindowStateService {
   }
 
   /**
-   * Updates window position
+   * Updates window position - temporary during drag, persisted on drag end
    */
   public static async savePosition(x: number, y: number): Promise<void> {
     await this.saveState({ x, y });
   }
 
   /**
-   * Updates window dimensions
+   * Updates window dimensions - temporary during resize, persisted on resize end
    */
   public static async saveGeometry(
     width: string,
@@ -106,17 +151,21 @@ export class WindowStateService {
   private static constrainToViewport(
     x: number,
     y: number,
-    width: number,
-    height: number
+    width: string,
+    height: string
   ): { x: number; y: number } {
     const viewportWidth =
       window.innerWidth || document.documentElement.clientWidth;
     const viewportHeight =
       window.innerHeight || document.documentElement.clientHeight;
 
+    // Parse dimensions, removing 'px' suffix
+    const widthNum = parseInt(width) || 400;
+    const heightNum = parseInt(height) || 500;
+
     // Ensure at least 100px of the window is always visible
-    const minVisibleWidth = Math.min(width, 100);
-    const minVisibleHeight = Math.min(height, 100);
+    const minVisibleWidth = Math.min(widthNum, 100);
+    const minVisibleHeight = Math.min(heightNum, 100);
 
     return {
       x: Math.min(Math.max(0, x), viewportWidth - minVisibleWidth),
@@ -137,26 +186,28 @@ export class WindowStateService {
     windowElement.style.position = "absolute";
     windowElement.style.right = "auto"; // Clear any right positioning
 
-    // Get window dimensions
-    const width = parseInt(state.width) || 400;
-    const height = parseInt(state.height) || 500;
+    // Constrain position to viewport using the stored dimensions directly
+    const { x, y } = this.constrainToViewport(
+      state.x,
+      state.y,
+      state.width,
+      state.height
+    );
 
-    // Constrain position to viewport
-    const { x, y } = this.constrainToViewport(state.x, state.y, width, height);
-
-    // Always apply constrained position, even when minimized
+    // Always apply constrained position
     windowElement.style.left = `${x}px`;
     windowElement.style.top = `${y}px`;
 
-    // Apply dimensions if not minimized
-    if (!state.isMinimized) {
-      windowElement.style.width = state.width;
-      windowElement.style.height = state.height;
-    } else {
-      // Clear dimensions but maintain position when minimized
+    // Apply minimized state
+    if (state.isMinimized) {
+      windowElement.classList.add("minimized");
       windowElement.style.width = "";
       windowElement.style.height = "";
-      windowElement.classList.add("minimized");
+    } else {
+      windowElement.classList.remove("minimized");
+      // Use stored dimensions directly
+      windowElement.style.width = state.width;
+      windowElement.style.height = state.height;
     }
 
     // Apply script height if element provided

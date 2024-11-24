@@ -4,101 +4,83 @@
  * File: src/utils/commands/contentCommands.ts
  */
 
-import {
-  ParsedCommandLine,
-  ScriptStatement,
-  CommandOptions,
-} from "../../types";
-import { BaseCommandInfo } from "./BaseCommandInfo";
+import { ParsedCommandLine, ScriptStatement } from "../../types";
+import { BaseCommandInfo, ExecuteParams } from "./BaseCommandInfo";
+import { ConversationRetrieval } from "../../services/ConversationRetrieval";
 
-/**
- * Base class for content-related commands
- */
-abstract class ContentCommandBase extends BaseCommandInfo {
-  constructor(
-    full: string,
-    abbreviation: string,
-    options?: { [key: string]: "no_arg" }
-  ) {
-    super(full, abbreviation, options);
-  }
-
-  protected processContentOptions(
-    options: Record<string, string>
-  ): CommandOptions {
-    const commandOptions: CommandOptions = {};
-
-    // Process options
-    for (const [key, _] of Object.entries(options)) {
-      switch (key.toLowerCase()) {
-        case "artifacts":
-        case "a":
-          commandOptions.includeArtifacts = true;
-          break;
-        case "multiple":
-        case "m":
-          commandOptions.downloadMultiple = true;
-          break;
-        default:
-          throw new Error(`Unknown option: /${key}`);
-      }
-    }
-
-    return commandOptions;
-  }
-}
-
-export class ConversationCommand extends ContentCommandBase {
+export class ConversationCommand extends BaseCommandInfo {
   constructor() {
     super("conversation", "c", {
-      artifacts: "no_arg", // Flag only
-      a: "no_arg", // Flag only
-      multiple: "no_arg", // Flag only
-      m: "no_arg", // Flag only
+      artifacts: "no_arg",
     });
   }
 
   public parse(parsedCommandLine: ParsedCommandLine): ScriptStatement {
-    const { options } = parsedCommandLine;
-    const commandOptions = this.processContentOptions(options);
-
-    // Conversation specific defaults
-    commandOptions.includeConversation = true;
-
-    // Validate options
-    if (commandOptions.downloadMultiple && !commandOptions.includeArtifacts) {
-      throw new Error("/multiple can only be used with /artifacts option");
-    }
-
     return new ScriptStatement({
       isCommand: true,
       command: "conversation",
-      options: commandOptions,
-      prompt: parsedCommandLine.prompt.trim(),
+      options: {
+        includeConversation: true,
+        includeArtifacts: parsedCommandLine.options["artifacts"] !== undefined,
+      },
     });
+  }
+
+  public override async execute(params: ExecuteParams): Promise<boolean> {
+    try {
+      const outputElement = document.querySelector(
+        ".output-container"
+      ) as HTMLElement;
+      if (!outputElement) {
+        throw new Error("Output element not found");
+      }
+
+      outputElement.innerHTML = "";
+      await ConversationRetrieval.displayCurrentConversation(
+        params.statement.options || {},
+        outputElement
+      );
+      return true;
+    } catch (error) {
+      console.error("Conversation command execution failed:", error);
+      return false;
+    }
   }
 }
 
-export class ArtifactsCommand extends ContentCommandBase {
+export class ArtifactsCommand extends BaseCommandInfo {
   constructor() {
-    super("artifacts", "a", {
-      multiple: "no_arg", // Flag only
-    });
+    super("artifacts", "a");
   }
 
   public parse(parsedCommandLine: ParsedCommandLine): ScriptStatement {
-    const { options } = parsedCommandLine;
-    const commandOptions = this.processContentOptions(options);
-
-    // Artifacts command always includes artifacts
-    commandOptions.includeArtifacts = true;
-    commandOptions.includeConversation = false;
-
     return new ScriptStatement({
       isCommand: true,
       command: "artifacts",
-      options: commandOptions,
-      prompt: parsedCommandLine.prompt.trim(),
+      options: {
+        includeArtifacts: true,
+      },
     });
+  }
+
+  public override async execute(params: ExecuteParams): Promise<boolean> {
+    try {
+      const outputElement = document.querySelector(
+        ".output-container"
+      ) as HTMLElement;
+      if (!outputElement) {
+        throw new Error("Output element not found");
+      }
+
+      outputElement.innerHTML = "";
+      await ConversationRetrieval.displayCurrentConversation(
+        params.statement.options || {},
+        outputElement
+      );
+      return true;
+    } catch (error) {
+      console.error("Artifacts command execution failed:", error);
+      return false;
+    }
   }
 }

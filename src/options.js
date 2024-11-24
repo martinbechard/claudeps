@@ -21,9 +21,12 @@ async function loadSettings() {
     document.getElementById("enableAnthropicApi").checked = enableApi;
     updateApiFieldsVisibility(enableApi);
 
-    // Load debug trace setting
+    // Load debug trace settings
     const debugTrace = settings.debugTraceRequests ?? false;
     document.getElementById("debugTraceRequests").checked = debugTrace;
+
+    const debugWindow = settings.debugWindowEvents ?? false;
+    document.getElementById("debugWindowEvents").checked = debugWindow;
   } catch (error) {
     console.error("Failed to load settings:", error);
   }
@@ -163,6 +166,7 @@ document
     const model = document.getElementById("model").value.trim();
     const theme = document.getElementById("theme").value;
     const debugTrace = document.getElementById("debugTraceRequests").checked;
+    const debugWindow = document.getElementById("debugWindowEvents").checked;
 
     const apiKeyErrorDiv = document.getElementById("apiKeyError");
     const modelErrorDiv = document.getElementById("modelError");
@@ -208,6 +212,7 @@ document
       // Save settings using SettingsService
       await SettingsService.setSetting("enableAnthropicApi", enableApi);
       await SettingsService.setSetting("debugTraceRequests", debugTrace);
+      await SettingsService.setSetting("debugWindowEvents", debugWindow);
       if (enableApi) {
         await SettingsService.setSetting("anthropicApiKey", apiKey);
         await SettingsService.setSetting("model", model);
@@ -224,6 +229,7 @@ document
       document.getElementById("theme").value = theme;
       document.getElementById("enableAnthropicApi").checked = enableApi;
       document.getElementById("debugTraceRequests").checked = debugTrace;
+      document.getElementById("debugWindowEvents").checked = debugWindow;
 
       // Show success message
       showSuccessMessage("Settings saved successfully");

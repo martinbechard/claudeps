@@ -19,6 +19,18 @@ export type OptionType = "no_arg" | "with_arg" | "with_prompt";
 export type CommandOptionDefinitions = { [key: string]: OptionType };
 
 /**
+ * Parameters for parse method
+ */
+export type ParseParams = ParsedCommandLine;
+
+/**
+ * Parameters for execute method
+ */
+export type ExecuteParams = {
+  statement: ScriptStatement;
+};
+
+/**
  * Base command info class
  */
 export class BaseCommandInfo {
@@ -32,15 +44,17 @@ export class BaseCommandInfo {
    * Parse the command line into a script statement
    * Default implementation returns null
    */
-  public parse(parsedCommandLine: ParsedCommandLine): ScriptStatement | null {
+  public parse(params: ParseParams): ScriptStatement | null {
     return null;
   }
 
   /**
    * Execute the command
    * Default implementation returns false
+   * @param params Execution parameters containing the script statement
+   * @returns Promise resolving to true if execution successful, false otherwise
    */
-  public execute(): boolean {
+  public async execute(params: ExecuteParams): Promise<boolean> {
     return false;
   }
 }

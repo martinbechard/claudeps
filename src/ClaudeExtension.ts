@@ -71,6 +71,9 @@ export class ClaudeExtension {
       this.helpManager = new HelpManager(elements.output);
       this.starredItemsPreview = new StarredItemsPreview();
 
+      // Set UI state manager on floating window
+      this.floatingWindow.setUIStateManager(this.uiStateManager);
+
       // Bind event listeners
       this.bindEventListeners(elements);
 
@@ -98,14 +101,6 @@ export class ClaudeExtension {
     // Starred button shows starred items
     elements.starredButton.addEventListener("click", () =>
       this.starredItemsPreview?.show()
-    );
-
-    // Minimize and collapse buttons control window state
-    elements.minimizeButton.addEventListener("click", () =>
-      this.uiStateManager?.toggleMinimize()
-    );
-    elements.collapseButton.addEventListener("click", () =>
-      this.uiStateManager?.toggleCollapse()
     );
   }
 

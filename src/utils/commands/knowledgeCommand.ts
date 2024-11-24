@@ -5,7 +5,8 @@
  */
 
 import { ParsedCommandLine, ScriptStatement } from "../../types";
-import { BaseCommandInfo } from "./BaseCommandInfo";
+import { BaseCommandInfo, ExecuteParams } from "./BaseCommandInfo";
+import { DocumentRetrieval } from "../../services/DocumentRetrieval";
 
 export class KnowledgeCommand extends BaseCommandInfo {
   constructor() {
@@ -18,5 +19,25 @@ export class KnowledgeCommand extends BaseCommandInfo {
       command: "knowledge",
       prompt: parsedCommandLine.prompt.trim(),
     });
+  }
+
+  public override async execute(params: ExecuteParams): Promise<boolean> {
+    try {
+      const outputElement = document.querySelector(
+        ".output-container"
+      ) as HTMLElement;
+      if (!outputElement) {
+        throw new Error("Output element not found");
+      }
+
+      outputElement.innerHTML = "";
+      const docs = await DocumentRetrieval.fetchDocuments();
+      await DocumentRetrieval.displayDocuments(docs, outputElement);
+
+      return true;
+    } catch (error) {
+      console.error("Knowledge command execution failed:", error);
+      return false;
+    }
   }
 }

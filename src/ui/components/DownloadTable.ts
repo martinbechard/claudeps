@@ -120,6 +120,19 @@ export class DownloadTable {
   }
 
   /**
+   * Creates a wrapper div for table and buttons
+   */
+  private createWrapper(): HTMLDivElement {
+    const wrapper = document.createElement("div");
+    wrapper.style.cssText = `
+      display: flex;
+      flex-direction: column;
+      width: 100%;
+    `;
+    return wrapper;
+  }
+
+  /**
    * Checks if a row has been processed
    */
   public isRowProcessed(conversationId: string): boolean {
@@ -132,6 +145,9 @@ export class DownloadTable {
   private initializeTable(): void {
     this.container.innerHTML = "";
 
+    // Create wrapper for table and buttons
+    const wrapper = this.createWrapper();
+
     // Add cancel button before the table if showing results and cancel button is enabled
     if (this.showResults && this.showCancelButton) {
       const cancelButton = createButton(
@@ -142,7 +158,7 @@ export class DownloadTable {
         { variant: "danger" }
       );
       cancelButton.style.marginBottom = "10px";
-      this.container.appendChild(cancelButton);
+      wrapper.appendChild(cancelButton);
     }
 
     const table = this.createTable();
@@ -150,9 +166,27 @@ export class DownloadTable {
     table.appendChild(headerRow);
     this.tbody = table.createTBody();
     table.appendChild(this.tbody);
-    this.container.appendChild(table);
+    wrapper.appendChild(table);
     this.currentTable = table;
-    this.addDownloadButtons();
+
+    // Add download buttons to wrapper
+    const buttonContainer = createButtonContainer();
+    buttonContainer.classList.add("download-buttons");
+
+    const downloadSelectedButton = createButton("Download Selected", () =>
+      this.handleDownload(false)
+    );
+
+    const downloadBundleButton = createButton("Download as Bundle", () =>
+      this.handleDownload(true)
+    );
+
+    buttonContainer.appendChild(downloadSelectedButton);
+    buttonContainer.appendChild(downloadBundleButton);
+    wrapper.appendChild(buttonContainer);
+
+    // Add wrapper to container
+    this.container.appendChild(wrapper);
   }
 
   /**
@@ -631,6 +665,9 @@ export class DownloadTable {
       return;
     }
 
+    // Create wrapper for table and buttons
+    const wrapper = this.createWrapper();
+
     // Add cancel button before the table if showing results and cancel button is enabled
     if (this.showResults && this.showCancelButton) {
       const cancelButton = createButton(
@@ -641,7 +678,7 @@ export class DownloadTable {
         { variant: "danger" }
       );
       cancelButton.style.marginBottom = "10px";
-      this.container.appendChild(cancelButton);
+      wrapper.appendChild(cancelButton);
     }
 
     const table = this.createTable();
@@ -654,9 +691,27 @@ export class DownloadTable {
       tbody.appendChild(row);
     });
 
-    this.container.appendChild(table);
+    wrapper.appendChild(table);
     this.currentTable = table;
-    this.addDownloadButtons();
+
+    // Add download buttons to wrapper
+    const buttonContainer = createButtonContainer();
+    buttonContainer.classList.add("download-buttons");
+
+    const downloadSelectedButton = createButton("Download Selected", () =>
+      this.handleDownload(false)
+    );
+
+    const downloadBundleButton = createButton("Download as Bundle", () =>
+      this.handleDownload(true)
+    );
+
+    buttonContainer.appendChild(downloadSelectedButton);
+    buttonContainer.appendChild(downloadBundleButton);
+    wrapper.appendChild(buttonContainer);
+
+    // Add wrapper to container
+    this.container.appendChild(wrapper);
   }
 
   /**
