@@ -47,8 +47,13 @@ export class DocumentRetrieval {
     docs: DocumentInfo[],
     outputElement: HTMLElement
   ): Promise<void> {
-    outputElement.innerHTML = "";
-    const table = new DownloadTable(outputElement, docs);
+    // Create a dedicated container for the table
+    const tableContainer = document.createElement("div");
+    tableContainer.className = "table-container";
+    outputElement.appendChild(tableContainer);
+
+    // Create and render the table in the dedicated container
+    const table = new DownloadTable(tableContainer, docs);
     table.render();
   }
 

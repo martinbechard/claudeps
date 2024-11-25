@@ -38,12 +38,17 @@ export class ProjectRetrieval {
    * @returns Promise resolving to array of project conversations
    * @throws Error if retrieval fails
    */
-  public static async getProjectConversations(): Promise<
-    ProjectConversation[]
-  > {
+  public static async getProjectConversations(
+    tryGet = false
+  ): Promise<ProjectConversation[]> {
     try {
       const orgId = getOrganizationId();
-      const projectId = await getProjectUuid(orgId);
+      const projectId = await getProjectUuid(orgId, tryGet);
+
+      if (!projectId) {
+        return [];
+      }
+
       const url = `${this.API_URL}/${orgId}/projects/${projectId}/conversations`;
 
       return await ClaudeCache.fetchWithCache<ProjectConversation[]>(url, {
@@ -129,8 +134,13 @@ export class ProjectRetrieval {
     docs: DocumentInfo[],
     outputElement: HTMLElement
   ): Promise<void> {
-    outputElement.innerHTML = "";
-    const table = new DownloadTable(outputElement, docs);
+    // Create a dedicated container for the table
+    const tableContainer = document.createElement("div");
+    tableContainer.className = "table-container";
+    outputElement.appendChild(tableContainer);
+
+    // Create and render the table in the dedicated container
+    const table = new DownloadTable(tableContainer, docs);
     table.render();
   }
 

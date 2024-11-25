@@ -1,6 +1,6 @@
 {
   "name": "claudeps-extension",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "Chrome extension for Claude with PromptScript support",
   "scripts": {
     "build": "webpack --mode=production",
@@ -8,7 +8,8 @@
     "build:debugp": "projectPackager.zsh && webpack --mode=development",
     "watch:debug": "webpack --mode=development --watch",
     "analyze": "tsc $1 --outDir dist",
-    "package": "./scripts/package-extension.sh"
+    "package": "./scripts/package-extension.sh",
+    "test": "jest"
   },
   "devDependencies": {
     "@jest/globals": "^29.7.0",
@@ -18,6 +19,7 @@
     "@typescript-eslint/eslint-plugin": "^6.0.0",
     "@typescript-eslint/parser": "^6.0.0",
     "copy-webpack-plugin": "^11.0.0",
+    "jest-environment-jsdom": "^29.7.0",
     "source-map-loader": "^4.0.0",
     "ts-loader": "^9.5.1",
     "ts-node": "^10.9.2",

@@ -1,0 +1,6 @@
+
+alias @design LIST one by one the changes necessary for this without proceeding with the changes at this time but propose a solution; VALIDATE that the change does not conflict with requirements or other changes; IF there is a problem, explain it and wait for my approval, OTHERWISE continue with the next change. until all changes have been described, then say "All changes done."
+
+alias @debug INVESTIGATE the errors one by one. Read the documents in the project knowledge to make sure you don't overlook anything. Here are some errors. Go through each error one by one, perform a root cause analysis and trace through the code to confirm, VALIDATE that the change does not conflict with requirements or other changes; IF there is a problem, explain it and wait for my approval, DO NOT STOP if there is no issue revealed by the validation.  Continue with the next problem until all problems are done, then say "All problems done."
+
+alias @genenerate LIST the files that need to be modified. FOR EACH file mentioned,  regenerate the file artifact in full including all changes described, no code placeholders, and wait for my approval after each. IF approved, do the next file until all file changes have been described, then say "All done."

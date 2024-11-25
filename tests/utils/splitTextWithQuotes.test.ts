@@ -1,4 +1,4 @@
-import { splitTextWithQuotes } from "@/utils/splitText";
+import { splitTextWithQuotes } from "src/utils/splitText";
 
 describe("splitTextWithQuotes", () => {
   // Empty or whitespace-only inputs
@@ -95,7 +95,6 @@ describe("splitTextWithQuotes", () => {
         "abc",
         "def", // Unquoted text
         "ghi \\",
-
         "jkl", // Rest of double-quoted section
         " 'mno\\' pqr'", // Single-quoted section stops at ' per Rule 2
       ]);

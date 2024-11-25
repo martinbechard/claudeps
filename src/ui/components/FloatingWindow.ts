@@ -20,26 +20,50 @@ export class FloatingWindow {
   private outputDiv: HTMLElement | null = null;
   private uiStateManager: UIStateManager | null = null;
   private helpManager: HelpManager | null = null;
+  private domObserver: MutationObserver | null = null;
+  private lastPathname: string = window.location.pathname;
 
-  private generateSimpleButtons(): string {
-    return `
-      <div class="simple-buttons" style="display: flex; gap: 8px; margin-bottom: 10px;">
-        ${simpleCommands
-          .map(
-            (cmd) => `
+  private isOnClaudeSite(): boolean {
+    return window.location.hostname.includes("claude.ai");
+  }
+
+  private async generateSimpleButtons(): Promise<string> {
+    const visibleCommands = await Promise.all(
+      simpleCommands.map(async (cmd) => {
+        if (cmd.isVisible) {
+          const isVisible = await cmd.isVisible();
+          if (!isVisible) return "";
+        }
+        return `
           <button 
             class="command-button ${cmd.className || ""}" 
             data-command="${cmd.command}"
             ${cmd.noAutoRun ? 'data-no-auto-run="true"' : ""}
           >${cmd.label}</button>
-        `
-          )
-          .join("")}
+        `;
+      })
+    );
+
+    const filteredCommands = visibleCommands.filter((cmd) => cmd !== "");
+
+    if (filteredCommands.length === 0) {
+      return `
+        <div class="simple-buttons" style="display: flex; gap: 8px; margin-bottom: 10px;">
+          <div style="color: #666; font-style: italic;">Please select a Project or a Chat</div>
+        </div>
+      `;
+    }
+
+    return `
+      <div class="simple-buttons" style="display: flex; gap: 8px; margin-bottom: 10px;">
+        ${filteredCommands.join("")}
       </div>
     `;
   }
 
-  private readonly template = `
+  private async generateTemplate(): Promise<string> {
+    const simpleButtonsHtml = await this.generateSimpleButtons();
+    return `
     <div class="floating-window">
       <div class="status ready" style="display: flex; justify-content: space-between; align-items: center;">
         <div style="display: flex; align-items: center; gap: 5px;">
@@ -74,7 +98,7 @@ Your prompt here"></textarea>
           <button id="runScript">Run Script</button>
         </div>
         <div class="simple-mode">
-          ${this.generateSimpleButtons()}
+          ${simpleButtonsHtml}
           <div class="project-search-container">
             <input type="text" class="project-search-input" placeholder="Enter search criteria..." />
             <button class="project-search-glyph">🔍</button>
@@ -88,6 +112,7 @@ Your prompt here"></textarea>
       </div>
     </div>
   `;
+  }
 
   /**
    * Creates and injects the floating window into the DOM.
@@ -95,8 +120,13 @@ Your prompt here"></textarea>
    * @throws Error if window creation fails
    */
   public async create(): Promise<HTMLElement> {
+    // Check if we're on claude.ai before creating the window
+    if (!this.isOnClaudeSite()) {
+      throw new Error("Not on claude.ai");
+    }
+
     const container = document.createElement("div");
-    container.innerHTML = this.template.trim();
+    container.innerHTML = (await this.generateTemplate()).trim();
 
     const window = container.querySelector(".floating-window");
     if (!window) {
@@ -127,7 +157,147 @@ Your prompt here"></textarea>
       }
     });
 
+    // Set up URL and DOM change detection
+    this.setupChangeDetection();
+
     return this.element;
+  }
+
+  /**
+   * Sets up URL and DOM change detection
+   */
+  private setupChangeDetection(): void {
+    // Listen for popstate events (browser back/forward)
+    window.addEventListener("popstate", this.handleLocationChange.bind(this));
+
+    // Listen for pushState/replaceState
+    const originalPushState = history.pushState;
+    const originalReplaceState = history.replaceState;
+
+    history.pushState = function (...args) {
+      originalPushState.apply(this, args);
+      window.dispatchEvent(new Event("locationchange"));
+    };
+
+    history.replaceState = function (...args) {
+      originalReplaceState.apply(this, args);
+      window.dispatchEvent(new Event("locationchange"));
+    };
+
+    window.addEventListener(
+      "locationchange",
+      this.handleLocationChange.bind(this)
+    );
+
+    // Set up DOM observer for button visibility updates when on claude.ai
+    if (this.isOnClaudeSite()) {
+      this.setupDomObserver();
+    }
+  }
+
+  /**
+   * Handles URL changes
+   */
+  private handleLocationChange(): void {
+    if (this.element) {
+      if (this.isOnClaudeSite()) {
+        this.element.style.display = "";
+        // Check if path changed
+        if (window.location.pathname !== this.lastPathname) {
+          this.lastPathname = window.location.pathname;
+          this.updateButtonVisibility();
+        }
+        // Set up DOM observer if we're back on claude.ai
+        this.setupDomObserver();
+      } else {
+        this.element.style.display = "none";
+        // Remove DOM observer when not on claude.ai
+        if (this.domObserver) {
+          this.domObserver.disconnect();
+          this.domObserver = null;
+        }
+      }
+    }
+  }
+
+  /**
+   * Sets up DOM observer for button visibility updates
+   */
+  private setupDomObserver(): void {
+    if (this.domObserver) {
+      this.domObserver.disconnect();
+    }
+
+    this.domObserver = new MutationObserver((mutations) => {
+      // Skip if mutation is in our own UI
+      const relevantChange = mutations.some((mutation) => {
+        const target = mutation.target as Element;
+        return !this.element?.contains(target);
+      });
+
+      if (relevantChange) {
+        this.updateButtonVisibility();
+      }
+    });
+
+    // Watch document.body like content.ts does
+    this.domObserver.observe(document.body, {
+      childList: true,
+      subtree: true,
+    });
+  }
+
+  /**
+   * Updates button visibility based on current URL context
+   */
+  private async updateButtonVisibility(): Promise<void> {
+    if (!this.element || !this.isOnClaudeSite()) return;
+
+    const simpleModeContainer = this.element.querySelector(".simple-mode");
+    if (!simpleModeContainer) return;
+
+    const simpleButtonsHtml = await this.generateSimpleButtons();
+    const simpleButtonsContainer =
+      simpleModeContainer.querySelector(".simple-buttons");
+    if (simpleButtonsContainer) {
+      simpleButtonsContainer.innerHTML = simpleButtonsHtml;
+      this.bindCommandButtonListeners();
+    }
+  }
+
+  /**
+   * Binds event listeners to command buttons
+   */
+  private bindCommandButtonListeners(): void {
+    if (!this.element) return;
+
+    const elements = this.getElements();
+    this.element.querySelectorAll(".command-button").forEach((button) => {
+      button.addEventListener("click", () => {
+        const command = button.getAttribute("data-command");
+        if (command) {
+          if (button.classList.contains("search-button")) {
+            // Show search UI for search button
+            const searchContainer = this.element?.querySelector(
+              ".project-search-container"
+            ) as HTMLElement;
+            if (searchContainer) {
+              searchContainer.style.display = "block";
+              const searchInput = searchContainer.querySelector(
+                ".project-search-input"
+              ) as HTMLInputElement;
+              if (searchInput) {
+                searchInput.focus();
+              }
+            }
+          } else {
+            // For other buttons, just execute the command
+            elements.scriptText.value = command;
+            elements.runButton.click();
+          }
+        }
+      });
+    });
   }
 
   /**
@@ -203,33 +373,7 @@ Your prompt here"></textarea>
    * Binds event listeners to UI elements
    */
   private bindEventListeners(elements: FloatingWindowElements): void {
-    // Command button handlers
-    elements.window.querySelectorAll(".command-button").forEach((button) => {
-      button.addEventListener("click", () => {
-        const command = button.getAttribute("data-command");
-        if (command) {
-          if (button.classList.contains("search-button")) {
-            // Show search UI for search button
-            const searchContainer = elements.window.querySelector(
-              ".project-search-container"
-            ) as HTMLElement;
-            if (searchContainer) {
-              searchContainer.style.display = "block";
-              const searchInput = searchContainer.querySelector(
-                ".project-search-input"
-              ) as HTMLInputElement;
-              if (searchInput) {
-                searchInput.focus();
-              }
-            }
-          } else {
-            // For other buttons, just execute the command
-            elements.scriptText.value = command;
-            elements.runButton.click();
-          }
-        }
-      });
-    });
+    this.bindCommandButtonListeners();
 
     // Project search handlers
     const searchContainer = elements.window.querySelector(
@@ -375,6 +519,22 @@ Your prompt here"></textarea>
    * Removes the floating window from the DOM.
    */
   public destroy(): void {
+    // Remove URL change listeners
+    window.removeEventListener(
+      "popstate",
+      this.handleLocationChange.bind(this)
+    );
+    window.removeEventListener(
+      "locationchange",
+      this.handleLocationChange.bind(this)
+    );
+
+    // Remove DOM observer
+    if (this.domObserver) {
+      this.domObserver.disconnect();
+      this.domObserver = null;
+    }
+
     this.element?.parentElement?.remove();
     this.element = null;
     this.outputDiv = null;

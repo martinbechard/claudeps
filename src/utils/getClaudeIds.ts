@@ -83,10 +83,14 @@ export function getOrganizationId(): string {
 /**
  * Gets the project UUID for API requests
  * @param organizationId - Organization ID to use for API request
+ * @param tryGet - if true, return null if not found
  * @returns Promise resolving to project UUID
  * @throws Error if project UUID cannot be retrieved
  */
-export async function getProjectUuid(organizationId: string): Promise<string> {
+export async function getProjectUuid(
+  organizationId: string,
+  tryGet = false
+): Promise<string> {
   if (!organizationId) {
     throw new Error("Organization ID is required");
   }
@@ -116,7 +120,7 @@ export async function getProjectUuid(organizationId: string): Promise<string> {
     const data: Conversation = await response.json();
     const projectUuid = data.project_uuid;
 
-    if (!projectUuid) {
+    if (!projectUuid && !tryGet) {
       throw new Error("Project UUID not found in conversation details");
     }
 

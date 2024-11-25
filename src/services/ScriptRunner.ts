@@ -52,7 +52,10 @@ export class ScriptRunner {
     // Try to execute using command class first
     const commandInfo = COMMAND_MAP[script.command];
     if (commandInfo) {
-      const success = await commandInfo.execute({ statement: script });
+      const success = await commandInfo.execute({
+        statement: script,
+        outputElement: this.commandExecutor.getOutputElement(),
+      });
       if (success) {
         return;
       }

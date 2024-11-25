@@ -1,4 +1,4 @@
-import { processUnquotedText } from "@/utils/splitText";
+import { processUnquotedText } from "src/utils/splitText";
 
 describe("processUnquotedText", () => {
   // Empty or invalid inputs

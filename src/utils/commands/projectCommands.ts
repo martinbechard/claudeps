@@ -25,15 +25,8 @@ export class ProjectCommand extends BaseCommandInfo {
 
   public override async execute(params: ExecuteParams): Promise<boolean> {
     try {
-      const outputElement = document.querySelector(
-        ".output-container"
-      ) as HTMLElement;
-      if (!outputElement) {
-        throw new Error("Output element not found");
-      }
-
-      outputElement.innerHTML = "";
-      await ProjectRetrieval.displayCurrentProject(outputElement);
+      params.outputElement.innerHTML = "";
+      await ProjectRetrieval.displayCurrentProject(params.outputElement);
       return true;
     } catch (error) {
       console.error("Project command execution failed:", error);
@@ -57,17 +50,10 @@ export class SearchProjectCommand extends BaseCommandInfo {
 
   public override async execute(params: ExecuteParams): Promise<boolean> {
     try {
-      const outputElement = document.querySelector(
-        ".output-container"
-      ) as HTMLElement;
-      if (!outputElement) {
-        throw new Error("Output element not found");
-      }
-
-      outputElement.innerHTML = "";
+      params.outputElement.innerHTML = "";
       await ProjectSearchService.searchAndDisplayResults(
         params.statement.searchText,
-        outputElement
+        params.outputElement
       );
       return true;
     } catch (error) {
@@ -83,22 +69,20 @@ export class QueryProjectCommand extends BaseCommandInfo {
   }
 
   public parse(parsedCommandLine: ParsedCommandLine): ScriptStatement {
+    const prompt = parsedCommandLine.prompt.trim();
+    if (!prompt) {
+      throw new Error("Query project command requires a prompt");
+    }
+
     return new ScriptStatement({
       isCommand: true,
       command: "query_project",
-      prompt: parsedCommandLine.prompt.trim(),
+      prompt: prompt,
     });
   }
 
   public override async execute(params: ExecuteParams): Promise<boolean> {
     try {
-      const outputElement = document.querySelector(
-        ".output-container"
-      ) as HTMLElement;
-      if (!outputElement) {
-        throw new Error("Output element not found");
-      }
-
       if (
         !params.statement.prompt ||
         params.statement.prompt.trim().length === 0
@@ -106,10 +90,10 @@ export class QueryProjectCommand extends BaseCommandInfo {
         throw new Error("No prompt provided for query_project command");
       }
 
-      outputElement.innerHTML = "";
+      params.outputElement.innerHTML = "";
       await PromptAll.queryAndDisplayResults(
         params.statement.prompt,
-        outputElement,
+        params.outputElement,
         async (status) => {
           // Status updates would be handled by the UI
           console.log(status);

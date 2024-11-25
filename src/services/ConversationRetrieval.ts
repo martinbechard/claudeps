@@ -86,7 +86,7 @@ export class ConversationRetrieval {
 
       // Get project conversations to validate against
       const projectConversations =
-        await ProjectRetrieval.getProjectConversations();
+        await ProjectRetrieval.getProjectConversations(true);
       const projectConversation = projectConversations.find(
         (c) => c?.uuid === conversationId
       );
@@ -251,8 +251,13 @@ export class ConversationRetrieval {
     docs: DocumentInfo[],
     outputElement: HTMLElement
   ): Promise<void> {
-    outputElement.innerHTML = "";
-    const table = new DownloadTable(outputElement, docs);
+    // Create a dedicated container for the table
+    const tableContainer = document.createElement("div");
+    tableContainer.className = "table-container";
+    outputElement.appendChild(tableContainer);
+
+    // Create and render the table in the dedicated container
+    const table = new DownloadTable(tableContainer, docs);
     table.render();
   }
 

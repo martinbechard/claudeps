@@ -1,11 +1,26 @@
 /**
  * Service to handle browser storage operations
  */
-import { OPFSStorage, IStorage } from "../types/storage";
+import { OPFSStorage, IStorage, MemoryStorage } from "../types/storage";
 
 export class StorageService {
   private static storage: IStorage = new OPFSStorage();
   private static readonly KEYS_FILE = "_storage_keys";
+
+  /**
+   * Set the storage provider
+   * @param provider The storage provider to use
+   */
+  static setStorageProvider(provider: IStorage): void {
+    this.storage = provider;
+  }
+
+  /**
+   * Use memory storage for testing
+   */
+  static useMemoryStorage(): void {
+    this.storage = new MemoryStorage();
+  }
 
   /**
    * Get a value from storage

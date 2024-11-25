@@ -7,7 +7,7 @@
 import { ParsedCommandLine, ScriptStatement } from "../../types";
 import { BaseCommandInfo } from "./BaseCommandInfo";
 
-const DEFAULT_MAX_TRIES = 3;
+const DEFAULT_MAX_TRIES = 10;
 
 export class RepeatCommand extends BaseCommandInfo {
   constructor() {

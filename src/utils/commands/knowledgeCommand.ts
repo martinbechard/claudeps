@@ -23,17 +23,9 @@ export class KnowledgeCommand extends BaseCommandInfo {
 
   public override async execute(params: ExecuteParams): Promise<boolean> {
     try {
-      const outputElement = document.querySelector(
-        ".output-container"
-      ) as HTMLElement;
-      if (!outputElement) {
-        throw new Error("Output element not found");
-      }
-
-      outputElement.innerHTML = "";
+      params.outputElement.innerHTML = "";
       const docs = await DocumentRetrieval.fetchDocuments();
-      await DocumentRetrieval.displayDocuments(docs, outputElement);
-
+      await DocumentRetrieval.displayDocuments(docs, params.outputElement);
       return true;
     } catch (error) {
       console.error("Knowledge command execution failed:", error);

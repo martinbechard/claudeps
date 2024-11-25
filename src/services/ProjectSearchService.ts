@@ -175,8 +175,13 @@ export class ProjectSearchService {
         conversations = await ProjectRetrieval.getProjectConversations();
       }
 
+      // Create a dedicated container for the table
+      const tableContainer = document.createElement("div");
+      tableContainer.className = "table-container";
+      outputElement.appendChild(tableContainer);
+
       // Initialize table with just headers, passing false to disable Cancel button
-      table = new DownloadTable(outputElement, true, false);
+      table = new DownloadTable(tableContainer, true, false);
       this.currentTable = table;
 
       // Add each conversation as a row

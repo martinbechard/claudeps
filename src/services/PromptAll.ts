@@ -127,9 +127,14 @@ export class PromptAll {
         status: "Pending",
       }));
 
+      // Create a dedicated container for the table
+      const tableContainer = document.createElement("div");
+      tableContainer.className = "table-container";
+      outputElement.appendChild(tableContainer);
+
       // Initialize table with pending status for all conversations
       const docs = this.createDocumentInfo(conversations, allResults);
-      const table = new DownloadTable(outputElement, true);
+      const table = new DownloadTable(tableContainer, true);
       table.render();
 
       // Process each conversation sequentially

@@ -8,9 +8,9 @@ import { ParsedCommandLine, ScriptStatement } from "../../types";
 import { BaseCommandInfo, ExecuteParams } from "./BaseCommandInfo";
 import { ConversationRetrieval } from "../../services/ConversationRetrieval";
 
-export class ConversationCommand extends BaseCommandInfo {
+export class ChatCommand extends BaseCommandInfo {
   constructor() {
-    super("conversation", "c", {
+    super("chat", "c", {
       artifacts: "no_arg",
     });
   }
@@ -18,7 +18,8 @@ export class ConversationCommand extends BaseCommandInfo {
   public parse(parsedCommandLine: ParsedCommandLine): ScriptStatement {
     return new ScriptStatement({
       isCommand: true,
-      command: "conversation",
+      command: "chat",
+      prompt: "",
       options: {
         includeConversation: true,
         includeArtifacts: parsedCommandLine.options["artifacts"] !== undefined,
@@ -28,21 +29,14 @@ export class ConversationCommand extends BaseCommandInfo {
 
   public override async execute(params: ExecuteParams): Promise<boolean> {
     try {
-      const outputElement = document.querySelector(
-        ".output-container"
-      ) as HTMLElement;
-      if (!outputElement) {
-        throw new Error("Output element not found");
-      }
-
-      outputElement.innerHTML = "";
+      params.outputElement.innerHTML = "";
       await ConversationRetrieval.displayCurrentConversation(
         params.statement.options || {},
-        outputElement
+        params.outputElement
       );
       return true;
     } catch (error) {
-      console.error("Conversation command execution failed:", error);
+      console.error("Chat command execution failed:", error);
       return false;
     }
   }
@@ -57,6 +51,7 @@ export class ArtifactsCommand extends BaseCommandInfo {
     return new ScriptStatement({
       isCommand: true,
       command: "artifacts",
+      prompt: "",
       options: {
         includeArtifacts: true,
       },
@@ -65,17 +60,10 @@ export class ArtifactsCommand extends BaseCommandInfo {
 
   public override async execute(params: ExecuteParams): Promise<boolean> {
     try {
-      const outputElement = document.querySelector(
-        ".output-container"
-      ) as HTMLElement;
-      if (!outputElement) {
-        throw new Error("Output element not found");
-      }
-
-      outputElement.innerHTML = "";
+      params.outputElement.innerHTML = "";
       await ConversationRetrieval.displayCurrentConversation(
         params.statement.options || {},
-        outputElement
+        params.outputElement
       );
       return true;
     } catch (error) {

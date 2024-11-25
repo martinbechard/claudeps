@@ -44,11 +44,17 @@ export class CommandExecutor {
   }
 
   /**
+   * Gets the output element used for displaying command results
+   */
+  public getOutputElement(): HTMLElement {
+    return this.outputElement;
+  }
+
+  /**
    * Handles the /knowledge command execution
    */
   public async handleKnowledgeCommand(): Promise<void> {
     try {
-      this.outputElement.innerHTML = "";
       this.handleLog("Fetching documents...");
       const docs = await DocumentRetrieval.fetchDocuments();
       await DocumentRetrieval.displayDocuments(docs, this.outputElement);
@@ -65,7 +71,6 @@ export class CommandExecutor {
    */
   public async handleProjectCommand(): Promise<void> {
     try {
-      this.outputElement.innerHTML = "";
       this.handleLog("Fetching project conversations...");
       await ProjectRetrieval.displayCurrentProject(this.outputElement);
       await this.statusManager.setStatus("ready", "Complete");
@@ -87,8 +92,6 @@ export class CommandExecutor {
     script: ScriptStatement
   ): Promise<void> {
     try {
-      this.outputElement.innerHTML = "";
-
       this.handleLog(
         script.searchText
           ? `Searching projects for: ${script.searchText}`
@@ -165,8 +168,6 @@ export class CommandExecutor {
     script: ScriptStatement
   ): Promise<void> {
     try {
-      this.outputElement.innerHTML = "";
-
       const prompt = script.prompt;
       if (!prompt || prompt.trim().length === 0) {
         throw new Error("No prompt provided for query_project command");
@@ -203,7 +204,6 @@ export class CommandExecutor {
     options: CommandOptions
   ): Promise<void> {
     try {
-      this.outputElement.innerHTML = "";
       this.handleLog("Retrieving conversation...");
 
       await ConversationRetrieval.displayCurrentConversation(
@@ -273,7 +273,6 @@ export class CommandExecutor {
           if (aliases.length === 0) {
             this.handleLog("No aliases defined", "info");
           } else {
-            this.outputElement.innerHTML = "";
             aliases.forEach((alias) => {
               const div = document.createElement("div");
               div.textContent = alias;

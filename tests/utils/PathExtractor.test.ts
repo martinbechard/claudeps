@@ -11,7 +11,8 @@ import {
   extractPath,
   extractPathFromComments,
   extractPathFromSpecialCases,
-} from "@/utils/PathExtractor";
+  filterPathFromSubdirectories,
+} from "src/utils/PathExtractor";
 
 describe("PathExtractor", () => {
   describe("extractPathFromComments", () => {
@@ -166,58 +167,70 @@ class Model {}`;
   });
 });
 
-import { filterPathFromSubdirectories } from "@/utils/PathExtractor";
-
 describe("filterPathFromSubdirectories", () => {
-    it("should return path from first 'src' occurrence in Unix-style path", () => {
-        const path = "/usr/local/myapp/src/utils/test.ts";
-        expect(filterPathFromSubdirectories(path, ["src"])).toBe("src/utils/test.ts");
-    });
+  it("should return path from first 'src' occurrence in Unix-style path", () => {
+    const path = "/usr/local/myapp/src/utils/test.ts";
+    expect(filterPathFromSubdirectories(path, ["src"])).toBe(
+      "src/utils/test.ts"
+    );
+  });
 
-    it("should handle Unix-style path starting with subdirectory", () => {
-        const path = "/src/utils/test.ts";
-        expect(filterPathFromSubdirectories(path, ["src"])).toBe("src/utils/test.ts");
-    });
+  it("should handle Unix-style path starting with subdirectory", () => {
+    const path = "/src/utils/test.ts";
+    expect(filterPathFromSubdirectories(path, ["src"])).toBe(
+      "src/utils/test.ts"
+    );
+  });
 
-    it("should return path from first 'src' occurrence in Windows-style path", () => {
-        const path = "C:\\Program Files\\MyApp\\src\\utils\\test.ts";
-        expect(filterPathFromSubdirectories(path, ["src"])).toBe("src\\utils\\test.ts");
-    });
+  it("should return path from first 'src' occurrence in Windows-style path", () => {
+    const path = "C:\\Program Files\\MyApp\\src\\utils\\test.ts";
+    expect(filterPathFromSubdirectories(path, ["src"])).toBe(
+      "src\\utils\\test.ts"
+    );
+  });
 
-    it("should return full path when no specified subdirectory is found", () => {
-        const path = "/usr/local/myapp/utils/test.ts";
-        expect(filterPathFromSubdirectories(path, ["src", "docs"])).toBe("/usr/local/myapp/utils/test.ts");
-    });
+  it("should return full path when no specified subdirectory is found", () => {
+    const path = "/usr/local/myapp/utils/test.ts";
+    expect(filterPathFromSubdirectories(path, ["src", "docs"])).toBe(
+      "/usr/local/myapp/utils/test.ts"
+    );
+  });
 
-    it("should handle path with multiple subdirectory options", () => {
-        const path = "/usr/local/myapp/docs/src/utils/test.ts";
-        expect(filterPathFromSubdirectories(path, ["src", "docs"])).toBe("docs/src/utils/test.ts");
-    });
+  it("should handle path with multiple subdirectory options", () => {
+    const path = "/usr/local/myapp/docs/src/utils/test.ts";
+    expect(filterPathFromSubdirectories(path, ["src", "docs"])).toBe(
+      "docs/src/utils/test.ts"
+    );
+  });
 });
 
 describe("extractPath with subdirectory filtering in comment blocks", () => {
-    it("should extract path from comment and return from first 'src' occurrence", () => {
-        const content = `// File: /usr/local/myapp/src/utils/test.ts`;
-        expect(extractPath(content, ["src"])).toBe("src/utils/test.ts");
-    });
+  it("should extract path from comment and return from first 'src' occurrence", () => {
+    const content = `// File: /usr/local/myapp/src/utils/test.ts`;
+    expect(extractPath(content, ["src"])).toBe("src/utils/test.ts");
+  });
 
-    it("should extract Unix-style path starting with subdirectory from comment", () => {
-        const content = `// File: /src/utils/test.ts`;
-        expect(extractPath(content, ["src"])).toBe("src/utils/test.ts");
-    });
+  it("should extract Unix-style path starting with subdirectory from comment", () => {
+    const content = `// File: /src/utils/test.ts`;
+    expect(extractPath(content, ["src"])).toBe("src/utils/test.ts");
+  });
 
-    it("should extract Windows-style path from comment and return from first 'src' occurrence", () => {
-        const content = `// File: C:\\Program Files\\MyApp\\src\\utils\\test.ts`;
-        expect(extractPath(content, ["src"])).toBe("src\\utils\\test.ts");
-    });
+  it("should extract Windows-style path from comment and return from first 'src' occurrence", () => {
+    const content = `// File: C:\\Program Files\\MyApp\\src\\utils\\test.ts`;
+    expect(extractPath(content, ["src"])).toBe("src\\utils\\test.ts");
+  });
 
-    it("should extract full path from comment when no specified subdirectory is found", () => {
-        const content = `// File: /usr/local/myapp/utils/test.ts`;
-        expect(extractPath(content, ["src", "docs"])).toBe("/usr/local/myapp/utils/test.ts");
-    });
+  it("should extract full path from comment when no specified subdirectory is found", () => {
+    const content = `// File: /usr/local/myapp/utils/test.ts`;
+    expect(extractPath(content, ["src", "docs"])).toBe(
+      "/usr/local/myapp/utils/test.ts"
+    );
+  });
 
-    it("should extract path from comment with multiple subdirectory options", () => {
-        const content = `// File: /usr/local/myapp/docs/src/utils/test.ts`;
-        expect(extractPath(content, ["src", "docs"])).toBe("docs/src/utils/test.ts");
-    });
+  it("should extract path from comment with multiple subdirectory options", () => {
+    const content = `// File: /usr/local/myapp/docs/src/utils/test.ts`;
+    expect(extractPath(content, ["src", "docs"])).toBe(
+      "docs/src/utils/test.ts"
+    );
+  });
 });

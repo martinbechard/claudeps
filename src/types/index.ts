@@ -8,6 +8,17 @@
 import { CommandName } from "../utils/commands/CommandMap";
 
 /**
+ * Simple command interface for button commands
+ */
+export interface SimpleCommand {
+  label: string;
+  command: string;
+  className?: string;
+  noAutoRun?: boolean;
+  isVisible?: () => Promise<boolean>;
+}
+
+/**
  * Search result information for conversations
  */
 export interface SearchResultInfo {

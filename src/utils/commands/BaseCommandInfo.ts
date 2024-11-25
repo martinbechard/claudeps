@@ -28,17 +28,44 @@ export type ParseParams = ParsedCommandLine;
  */
 export type ExecuteParams = {
   statement: ScriptStatement;
+  outputElement: HTMLElement;
 };
+
+/**
+ * Type for validation callback
+ */
+export type ValidationCallback = () => Promise<boolean>;
 
 /**
  * Base command info class
  */
 export class BaseCommandInfo {
+  private validationCallback?: ValidationCallback;
+
   constructor(
     public readonly full: string,
     public readonly abbreviation: string,
     public readonly options?: CommandOptionDefinitions
   ) {}
+
+  /**
+   * Set a validation callback that determines if the command should be available
+   * @param callback The validation function that returns a promise resolving to boolean
+   */
+  public setValidationCallback(callback: ValidationCallback) {
+    this.validationCallback = callback;
+  }
+
+  /**
+   * Check if the command is valid/available based on the validation callback
+   * @returns Promise resolving to true if valid, false otherwise
+   */
+  public async isValid(): Promise<boolean> {
+    if (this.validationCallback) {
+      return await this.validationCallback();
+    }
+    return true;
+  }
 
   /**
    * Parse the command line into a script statement
@@ -51,7 +78,7 @@ export class BaseCommandInfo {
   /**
    * Execute the command
    * Default implementation returns false
-   * @param params Execution parameters containing the script statement
+   * @param params Execution parameters containing the script statement and output element
    * @returns Promise resolving to true if execution successful, false otherwise
    */
   public async execute(params: ExecuteParams): Promise<boolean> {
