@@ -18,30 +18,34 @@ export class HelpManager {
     
     2. Commands:
     
-    Basic Commands:
-    /d[ocs] - List available documents
-    /p[roject] - List conversations in current project
-    
     Content Commands:
-    /c[onversation] - Export conversation without artifacts
-    /c[onversation] /a[rtifacts] - Export conversation including artifacts
-    /c[onversation] /m[ultiple] - Export artifacts as separate files
+    /ch[at] - Export chat without artifacts
+    /ch[at] /a[rtifacts] - Export chat including artifacts
+    /ch[at] /m[ultiple] - Export artifacts as separate files
     /a[rtifacts] - Export only artifacts as markdown
     /a[rtifacts] /m[ultiple] - Export artifacts as separate files
     
     Project Commands:
-    /sp[search_project] [text] - Search project conversations
-    /qp[query_project] prompt - Query all conversations
+    /p[roject] - List conversations in current project
+    /sp[search_project] <text> - Search project conversations
+    /qp[query_project] <prompt> - Query all conversations
+    
+    Knowledge & Settings:
+    /k[nowledge] - Access knowledge base and documentation
+    /s[ettings] - View current settings
+    /s[ettings] <option>=<value> - Update settings
+      Options: enable_api, api_key, model, theme, debug_trace, debug_window
+      Example: /settings theme=dark
     
     Alias Commands:
-    /al[ias] @name text - Create or update an alias
+    /al[ias] @name <text> - Create or update an alias
     /da[delete_alias] @name - Delete an alias
     /la[list_alias] - List all aliases
     
     3. Loop Command Format:
-    /repeat [/max number] [/stop_if condition]
+    /r[epeat] [/max number] [/stop_if condition]
     or
-    /repeat [/max number] [/stop_if_not condition]
+    /r[epeat] [/max number] [/stop_if_not condition]
     
     Examples:
     Simple prompt:
@@ -59,7 +63,10 @@ export class HelpManager {
     /repeat /stop_if laugh
     Tell me a joke
     
-    Note: All command keywords now start with / for consistency`.trim();
+    Note: Commands are context-sensitive:
+    - Project commands require being in a project context
+    - Content commands require being in a chat context
+    - Settings and alias commands are available in any context`.trim();
 
   /**
    * Creates a new HelpManager instance.
@@ -70,16 +77,29 @@ export class HelpManager {
   }
 
   /**
-   * Displays the help text in the output element.
+   * Helper method to format and display text content
+   * @param text - Text content to display
    */
-  public show(): void {
+  private formatContent(text: string): void {
     this.outputElement.innerHTML = "";
-    HelpManager.HELP_TEXT.split("\n").forEach((line) => {
+    const lines = text.split("\n");
+    lines.forEach((line, index) => {
       const div = document.createElement("div");
       div.textContent = line;
       div.style.whiteSpace = "pre";
       this.outputElement.appendChild(div);
+      // Add a newline after each line except the last one
+      if (index < lines.length - 1) {
+        this.outputElement.appendChild(document.createTextNode("\n"));
+      }
     });
+  }
+
+  /**
+   * Displays the help text in the output element.
+   */
+  public show(): void {
+    this.formatContent(HelpManager.HELP_TEXT);
   }
 
   /**
@@ -87,16 +107,7 @@ export class HelpManager {
    * @param newText - New help text content
    */
   public updateContent(newText: string): void {
-    this.outputElement.innerHTML = "";
-    newText
-      .trim()
-      .split("\n")
-      .forEach((line) => {
-        const div = document.createElement("div");
-        div.textContent = line;
-        div.style.whiteSpace = "pre";
-        this.outputElement.appendChild(div);
-      });
+    this.formatContent(newText);
   }
 
   /**

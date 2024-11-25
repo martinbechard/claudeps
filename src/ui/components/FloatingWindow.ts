@@ -375,6 +375,14 @@ Your prompt here"></textarea>
   private bindEventListeners(elements: FloatingWindowElements): void {
     this.bindCommandButtonListeners();
 
+    // Add Enter key handler for script text area
+    elements.scriptText.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" && !e.shiftKey) {
+        e.preventDefault();
+        elements.runButton.click();
+      }
+    });
+
     // Project search handlers
     const searchContainer = elements.window.querySelector(
       ".project-search-container"

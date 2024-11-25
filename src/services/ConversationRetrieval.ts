@@ -51,7 +51,7 @@ export class ConversationRetrieval {
     const match = window.location.pathname.match(/\/chat\/([^\/]+)/);
     if (!match) {
       throw new Error(
-        "Please navigate to a Claude chat page before using conversation commands"
+        "Please navigate to a Claude chat page before using chat commands"
       );
     }
     return match[1];
