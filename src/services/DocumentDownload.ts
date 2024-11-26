@@ -20,71 +20,26 @@ export class DocumentDownload {
     docs: DocumentInfo[]
   ): Promise<string> {
     const sections: string[] = [];
-    const groupedDocs = this.groupDocumentsByDirectory(docs);
-
-    const singleFile = Object.keys(groupedDocs).length > 1;
-
     sections.push("# src\n");
 
-    for (const [directory, dirDocs] of Object.entries(groupedDocs)) {
-      if (directory !== "" && !singleFile) {
-        sections.push(`## ${directory}\n`);
-      }
+    // Process files in their original order
+    for (const doc of docs) {
+      const extension = doc.filePath.split(".").pop() || "";
+      const language = this.getLanguageFromExtension(extension);
 
-      for (const doc of dirDocs) {
-        const extension = doc.filePath.split(".").pop() || "";
-        const language = this.getLanguageFromExtension(extension);
+      sections.push(`## ${doc.filePath}\n`);
+      sections.push("```" + language);
 
-        sections.push(`## ${doc.filePath}\n`);
+      // Use contentCallback if available, otherwise use static content
+      const content = doc.contentCallback
+        ? await doc.contentCallback(doc)
+        : doc.content;
 
-        if (!singleFile) {
-          sections.push("```" + language);
-        }
-
-        // Use contentCallback if available, otherwise use static content
-        const content = doc.contentCallback
-          ? await doc.contentCallback(doc)
-          : doc.content;
-
-        sections.push(content);
-        if (!singleFile) {
-          sections.push("```\n");
-        }
-      }
+      sections.push(content);
+      sections.push("```\n");
     }
 
     return sections.join("\n");
-  }
-
-  /**
-   * Groups documents by their directory path
-   * @param docs - Documents to group
-   * @returns Record of directory paths to document arrays
-   */
-  private static groupDocumentsByDirectory(
-    docs: DocumentInfo[]
-  ): Record<string, DocumentInfo[]> {
-    const groups: Record<string, DocumentInfo[]> = {};
-
-    docs.forEach((doc) => {
-      const path = doc.filePath;
-      const lastSlash = path.lastIndexOf("/");
-      const directory = lastSlash > 0 ? path.substring(0, lastSlash) : "";
-
-      if (!groups[directory]) {
-        groups[directory] = [];
-      }
-      groups[directory].push(doc);
-    });
-
-    return Object.keys(groups)
-      .sort()
-      .reduce((obj, key) => {
-        obj[key] = groups[key].sort((a, b) =>
-          a.fileName.localeCompare(b.fileName)
-        );
-        return obj;
-      }, {} as Record<string, DocumentInfo[]>);
   }
 
   /**
@@ -198,8 +153,6 @@ export class DocumentDownload {
    * @param selectedDocs - Array of documents to download
    * @throws Error if no documents selected or download fails
    */
-  // In DocumentDownload.ts, update the handleMultipleDownload method:
-
   public static async handleMultipleDownload(
     selectedDocs: DocumentInfo[]
   ): Promise<void> {
@@ -208,6 +161,7 @@ export class DocumentDownload {
     }
 
     try {
+      // Process documents in their original order
       for (const doc of selectedDocs) {
         const content = doc.contentCallback
           ? await doc.contentCallback(doc)
