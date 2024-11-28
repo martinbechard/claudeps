@@ -14,6 +14,7 @@ export interface Settings {
   enableAnthropicApi?: boolean;
   debugTraceRequests?: boolean;
   debugWindowEvents?: boolean;
+  downloadRoot?: string;
 }
 
 /**
@@ -57,7 +58,7 @@ export class SettingsService {
   ): Promise<string | boolean | undefined> {
     const settings = await this.getSettings();
     if (key === "theme") {
-      return settings[key] || this.DEFAULT_THEME;
+      return settings[key] ?? this.DEFAULT_THEME;
     }
     if (key === "enableAnthropicApi") {
       return settings[key] ?? this.DEFAULT_ENABLE_ANTHROPIC;
@@ -68,7 +69,10 @@ export class SettingsService {
     if (key === "debugWindowEvents") {
       return settings[key] ?? this.DEFAULT_DEBUG_WINDOW;
     }
-    return settings[key] || (key === "model" ? this.DEFAULT_MODEL : undefined);
+    if (key === "model") {
+      return settings[key] ?? this.DEFAULT_MODEL;
+    }
+    return settings[key];
   }
 
   /**

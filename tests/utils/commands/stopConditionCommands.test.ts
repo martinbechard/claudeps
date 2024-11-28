@@ -35,6 +35,7 @@ describe("StopIfCommand", () => {
       expect(result).toEqual({
         isCommand: true,
         command: "stop_if",
+        prompt: "",
         options: {
           stopConditions: [
             {
@@ -105,6 +106,7 @@ describe("StopIfNotCommand", () => {
       expect(result).toEqual({
         isCommand: true,
         command: "stop_if_not",
+        prompt: "",
         options: {
           stopConditions: [
             {

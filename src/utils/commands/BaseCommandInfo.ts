@@ -4,7 +4,12 @@
  * File: src/utils/commands/BaseCommandInfo.ts
  */
 
-import { ParsedCommandLine, ScriptStatement } from "../../types";
+import {
+  CommandOptions,
+  ParsedCommandLine,
+  ScriptStatement,
+} from "../../types";
+import type { StatusManager } from "../../ui/components/StatusManager";
 
 /**
  * Type of argument required for an option
@@ -24,11 +29,21 @@ export type CommandOptionDefinitions = { [key: string]: OptionType };
 export type ParseParams = ParsedCommandLine;
 
 /**
+ * Type for log function
+ */
+export type LogFunction = (
+  message: string,
+  type?: "info" | "error" | "success"
+) => void;
+
+/**
  * Parameters for execute method
  */
 export type ExecuteParams = {
   statement: ScriptStatement;
   outputElement: HTMLElement;
+  handleLog: LogFunction;
+  setStatus: StatusManager["setStatus"];
 };
 
 /**
@@ -65,6 +80,47 @@ export class BaseCommandInfo {
       return await this.validationCallback();
     }
     return true;
+  }
+
+  /**
+   * Helper method to get options from a statement, initializing if needed
+   */
+  protected getOptions(statement: ScriptStatement): CommandOptions {
+    const mutableStatement = statement as { options?: CommandOptions };
+    if (!mutableStatement.options) {
+      mutableStatement.options = {};
+    }
+    return mutableStatement.options;
+  }
+
+  /**
+   * Helper method to add a stop condition to a statement
+   */
+  protected addStopCondition(
+    statement: ScriptStatement,
+    target: string,
+    type: "if" | "if_not"
+  ) {
+    const options = this.getOptions(statement);
+    if (!options.stopConditions) {
+      options.stopConditions = [];
+    }
+    options.stopConditions.push({ target, type });
+  }
+
+  /**
+   * Helper method to create a script statement with minimal fields
+   */
+  protected createStatement(
+    command: string,
+    additionalProps: Partial<ScriptStatement> = {}
+  ): ScriptStatement {
+    const props: any = {
+      isCommand: true,
+      command,
+      ...additionalProps,
+    };
+    return new ScriptStatement(props);
   }
 
   /**

@@ -6,7 +6,7 @@
 
 | Command           | Abbreviation | Description                                                                     |
 | ----------------- | ------------ | ------------------------------------------------------------------------------- |
-| `/repeat`         | `/r`         | Repeat the following prompt                                                     |
+| `/repeat`         | `/rp`        | Repeat the following prompt                                                     |
 | `/stop_if`        | `/p`         | Stop repeating or stop the script if the LLM response contains a string         |
 | `/stop_if_not`    | `/p`         | Stop repeating or stop the script if the LLM response does not contain a string |
 | `/alias`          | `/@+`        | Define a new alias                                                              |
@@ -19,6 +19,7 @@
 | `/query_project`  | `/qp`        | Execute a prompt against every chat in the project                              |
 | `/knowledge`      | `/k`         | Access knowledge base and documentation                                         |
 | `/settings`       | `/s`         | View or update extension settings                                               |
+| `/root`           | `/r`         | View or set download root path                                                  |
 
 [Previous content remains the same until the ClaudePS Commands section]
 
@@ -82,12 +83,25 @@ ClaudePS is a Chrome Extension that implements the PS language for use with the 
   - `/settings enable_api=true api_key=sk-ant-your-key`
   - `/settings debug_trace=true debug_window=false`
 
+### Root Command
+
+#### `/root` (`/r`)
+
+- **Description:** View or set download root path
+- **Usage:**
+  - View current root: `/root`
+  - Set root path: `/root <path>`
+  - Clear root path: `/root clear`
+- **Examples:**
+  - `/root /Users/username/Downloads`
+  - `/root clear`
+
 ### Command Visibility
 
 Commands are only visible and available based on the current context:
 
 - `/project`, `/search_project`, `/query_project`, and `/knowledge` require being in a project context
 - `/conversation` and `/artifacts` require being in a chat context
-- `/settings` is available in any context
+- `/settings` and `/root` are available in any context
 
 [Rest of the content remains the same]

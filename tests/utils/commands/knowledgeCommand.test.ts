@@ -12,6 +12,12 @@ import {
   ScriptStatement,
   DocumentInfo,
 } from "../../../src/types";
+import {
+  mockOutputElement,
+  mockHandleLog,
+  mockSetStatus,
+  resetMocks,
+} from "../../__mocks__/commandTestUtils";
 
 // Mock DocumentRetrieval with proper types
 jest.mock("../../../src/services/DocumentRetrieval", () => ({
@@ -25,16 +31,10 @@ jest.mock("../../../src/services/DocumentRetrieval", () => ({
   },
 }));
 
-// Create mock output element
-const mockOutputElement = document.createElement("div");
-
 beforeEach(() => {
-  // Reset the mock element's innerHTML before each test
-  mockOutputElement.innerHTML = "";
   // Mock console.error to suppress error output in tests
   jest.spyOn(console, "error").mockImplementation(() => {});
-  // Clear all mocks
-  jest.clearAllMocks();
+  resetMocks();
 });
 
 describe("KnowledgeCommand", () => {
@@ -67,6 +67,7 @@ describe("KnowledgeCommand", () => {
           isCommand: true,
           command: "knowledge",
           prompt: "test prompt",
+          options: {},
         })
       );
     });
@@ -118,11 +119,14 @@ describe("KnowledgeCommand", () => {
         isCommand: true,
         command: "knowledge",
         prompt: "test",
+        options: {},
       });
 
       const result = await command.execute({
         statement,
         outputElement: mockOutputElement,
+        handleLog: mockHandleLog,
+        setStatus: mockSetStatus,
       });
 
       expect(result).toBe(true);
@@ -132,6 +136,8 @@ describe("KnowledgeCommand", () => {
         mockOutputElement
       );
       expect(mockOutputElement.innerHTML).toBe("");
+      expect(mockHandleLog).toHaveBeenCalledWith("Fetching documents...");
+      expect(mockSetStatus).toHaveBeenCalledWith("ready", "Complete");
     });
 
     it("should handle DocumentRetrieval.fetchDocuments error gracefully", async () => {
@@ -145,16 +151,24 @@ describe("KnowledgeCommand", () => {
         isCommand: true,
         command: "knowledge",
         prompt: "test",
+        options: {},
       });
 
       const result = await command.execute({
         statement,
         outputElement: mockOutputElement,
+        handleLog: mockHandleLog,
+        setStatus: mockSetStatus,
       });
 
       expect(result).toBe(false);
       expect(DocumentRetrieval.fetchDocuments).toHaveBeenCalled();
       expect(DocumentRetrieval.displayDocuments).not.toHaveBeenCalled();
+      expect(mockHandleLog).toHaveBeenCalledWith(
+        expect.stringContaining("Fetch failed"),
+        "error"
+      );
+      expect(mockSetStatus).toHaveBeenCalledWith("error", expect.any(String));
     });
 
     it("should handle DocumentRetrieval.displayDocuments error gracefully", async () => {
@@ -168,16 +182,24 @@ describe("KnowledgeCommand", () => {
         isCommand: true,
         command: "knowledge",
         prompt: "test",
+        options: {},
       });
 
       const result = await command.execute({
         statement,
         outputElement: mockOutputElement,
+        handleLog: mockHandleLog,
+        setStatus: mockSetStatus,
       });
 
       expect(result).toBe(false);
       expect(DocumentRetrieval.fetchDocuments).toHaveBeenCalled();
       expect(DocumentRetrieval.displayDocuments).toHaveBeenCalled();
+      expect(mockHandleLog).toHaveBeenCalledWith(
+        expect.stringContaining("Display failed"),
+        "error"
+      );
+      expect(mockSetStatus).toHaveBeenCalledWith("error", expect.any(String));
     });
   });
 });

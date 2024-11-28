@@ -5,13 +5,14 @@
  */
 
 import { ParsedCommandLine, ScriptStatement } from "../../types";
-import { BaseCommandInfo } from "./BaseCommandInfo";
+import { requestCompletion } from "../requestCompletion";
+import { BaseCommandInfo, ExecuteParams } from "./BaseCommandInfo";
 
 const DEFAULT_MAX_TRIES = 10;
 
 export class RepeatCommand extends BaseCommandInfo {
   constructor() {
-    super("repeat", "r", {
+    super("repeat", "rp", {
       max: "with_arg", // Requires number argument
       stop_if: "with_prompt", // Requires condition text
       stop_if_not: "with_prompt", // Requires condition text
@@ -65,5 +66,66 @@ export class RepeatCommand extends BaseCommandInfo {
     }
 
     return statement;
+  }
+
+  private checkStopConditions(
+    response: string,
+    stopConditions: Array<any>
+  ): boolean {
+    for (const condition of stopConditions) {
+      const containsTarget = response.includes(condition.target);
+      if (
+        (condition.type === "if" && containsTarget) ||
+        (condition.type === "if_not" && !containsTarget)
+      ) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  public override async execute(params: ExecuteParams): Promise<boolean> {
+    const maxTries = params.statement.options?.maxTries || DEFAULT_MAX_TRIES;
+    const stopConditions = params.statement.options?.stopConditions || [];
+    const prompt = params.statement.prompt;
+
+    if (!prompt) {
+      throw new Error("No prompt provided for repeat command");
+    }
+
+    let currentTry = 1;
+    while (currentTry <= maxTries) {
+      // Update output for each attempt
+      params.outputElement.innerHTML = "";
+      params.outputElement.textContent = `Attempt ${currentTry}/${maxTries}...\n`;
+
+      try {
+        // Request completion from LLM
+        const response = await requestCompletion({
+          prompt,
+          stream: true,
+        });
+
+        // Check if response meets stop conditions
+        if (this.checkStopConditions(response.completion, stopConditions)) {
+          return true;
+        }
+
+        // If this was the last try and conditions weren't met
+        if (currentTry === maxTries) {
+          params.outputElement.textContent +=
+            "\nMax attempts reached without meeting stop condition";
+          return true;
+        }
+
+        currentTry++;
+      } catch (error) {
+        console.error(`Attempt ${currentTry} failed:`, error);
+        // Continue with next attempt despite error
+        currentTry++;
+      }
+    }
+    console.log("failed to match");
+    return true;
   }
 }

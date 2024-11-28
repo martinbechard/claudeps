@@ -18,17 +18,31 @@ export class KnowledgeCommand extends BaseCommandInfo {
       isCommand: true,
       command: "knowledge",
       prompt: parsedCommandLine.prompt.trim(),
+      options: {},
     });
   }
 
   public override async execute(params: ExecuteParams): Promise<boolean> {
     try {
       params.outputElement.innerHTML = "";
+      params.handleLog("Fetching documents...");
+
       const docs = await DocumentRetrieval.fetchDocuments();
       await DocumentRetrieval.displayDocuments(docs, params.outputElement);
+
+      params.handleLog(
+        "Documents fetched and displayed successfully",
+        "success"
+      );
+      await params.setStatus("ready", "Complete");
       return true;
     } catch (error) {
-      console.error("Knowledge command execution failed:", error);
+      const message = error instanceof Error ? error.message : "Unknown error";
+      params.handleLog(
+        `Knowledge command execution failed: ${message}`,
+        "error"
+      );
+      await params.setStatus("error", message);
       return false;
     }
   }

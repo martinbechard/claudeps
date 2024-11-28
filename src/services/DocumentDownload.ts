@@ -9,6 +9,8 @@
  */
 
 import type { DocumentInfo } from "../types";
+import { SettingsService } from "./SettingsService";
+import { prependRoot } from "../utils/pathUtils";
 
 export class DocumentDownload {
   /**
@@ -86,11 +88,11 @@ export class DocumentDownload {
    * @param filePath - Name for downloaded file
    * @param isBundled - Whether the content is a markdown bundle
    */
-  private static downloadContent(
+  private static async downloadContent(
     content: string,
     filePath: string,
     isBundled: boolean = false
-  ): void {
+  ): Promise<void> {
     const extension = filePath.split(".").pop() || "";
     const language = isBundled
       ? ""
@@ -101,15 +103,24 @@ export class DocumentDownload {
     const url = URL.createObjectURL(blob);
 
     try {
+      // Get the download root from settings
+      const root = (await SettingsService.getSetting("downloadRoot")) as
+        | string
+        | undefined;
+      const finalPath = prependRoot(filePath, root);
+
       chrome.runtime.sendMessage(
         {
           type: "download",
           url: url,
-          filename: filePath,
+          filename: finalPath,
         },
         (response) => {
           if (!response.success) {
-            console.error("Download failed:", response.error);
+            console.error(
+              `Download failed: url: "${url}" path: "${finalPath}" `,
+              response.error
+            );
             alert("Failed to start download. Please try again.");
           }
         }
@@ -138,7 +149,7 @@ export class DocumentDownload {
         .replace(/[:]/g, "-")
         .split(".")[0];
       const filename = `claude-export-${timestamp}.md`;
-      this.downloadContent(markdownContent, filename, true);
+      await this.downloadContent(markdownContent, filename, true);
     } catch (error) {
       throw new Error(
         `Failed to export document bundle: ${
@@ -170,7 +181,7 @@ export class DocumentDownload {
         // Use the full path if available, otherwise fallback to filename
         const filePath = doc.filePath || doc.fileName;
 
-        this.downloadContent(content, filePath, false);
+        await this.downloadContent(content, filePath, false);
       }
     } catch (error) {
       throw new Error(

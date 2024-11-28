@@ -4,8 +4,9 @@
  * File: src/utils/commands/aliasCommands.ts
  */
 
+import { AliasService } from "../../services/AliasService";
 import { ParsedCommandLine, ScriptStatement } from "../../types";
-import { BaseCommandInfo } from "./BaseCommandInfo";
+import { BaseCommandInfo, ExecuteParams } from "./BaseCommandInfo";
 
 /**
  * Validates alias command argument format
@@ -20,6 +21,62 @@ function isValidAliasName(name: string): boolean {
 abstract class AliasCommandBase extends BaseCommandInfo {
   constructor(full: string, abbreviation: string) {
     super(full, abbreviation);
+  }
+
+  public override async execute(params: ExecuteParams): Promise<boolean> {
+    try {
+      const command = params.statement.aliasCommand;
+      if (!command) return false;
+
+      switch (command.type) {
+        case "alias":
+          if (!command.name || !command.text) {
+            throw new Error("Invalid alias command: missing name or text");
+          }
+          await AliasService.setAlias(command.name, command.text);
+          params.handleLog(`Alias @${command.name} created`, "success");
+          break;
+
+        case "delete_alias":
+          if (!command.name) {
+            throw new Error("Invalid delete alias command: missing name");
+          }
+          const deleted = await AliasService.deleteAlias(command.name);
+          if (deleted) {
+            params.handleLog(`Alias @${command.name} deleted`, "success");
+          } else {
+            params.handleLog(`Alias @${command.name} not found`, "error");
+            return false;
+          }
+          break;
+
+        case "list_alias":
+          const aliases = await AliasService.getAliasList();
+          if (aliases.length === 0) {
+            params.outputElement.textContent = "No aliases defined";
+            params.handleLog("No aliases defined", "info");
+          } else {
+            aliases.forEach((alias) => {
+              const div = document.createElement("div");
+              div.textContent = alias;
+              params.outputElement.appendChild(div);
+            });
+            params.handleLog("Aliases listed successfully", "success");
+          }
+          break;
+
+        default:
+          return false;
+      }
+
+      await params.setStatus("ready", "Complete");
+      return true;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Unknown error";
+      params.handleLog(`Alias command failed: ${message}`, "error");
+      await params.setStatus("error", message);
+      return false;
+    }
   }
 }
 
@@ -46,7 +103,8 @@ export class SetAliasCommand extends AliasCommandBase {
       );
     }
 
-    return new ScriptStatement({
+    // Only include required fields
+    const props = {
       isCommand: true,
       command: "alias",
       aliasCommand: {
@@ -54,7 +112,9 @@ export class SetAliasCommand extends AliasCommandBase {
         name: aliasName,
         text: aliasText,
       },
-    });
+    };
+
+    return new ScriptStatement(props as any);
   }
 }
 
@@ -79,14 +139,17 @@ export class DeleteAliasCommand extends AliasCommandBase {
       );
     }
 
-    return new ScriptStatement({
+    // Only include required fields
+    const props = {
       isCommand: true,
       command: "delete_alias",
       aliasCommand: {
         type: "delete_alias",
         name: deleteName,
       },
-    });
+    };
+
+    return new ScriptStatement(props as any);
   }
 }
 
@@ -105,12 +168,15 @@ export class ListAliasCommand extends AliasCommandBase {
       );
     }
 
-    return new ScriptStatement({
+    // Only include required fields
+    const props = {
       isCommand: true,
       command: "list_alias",
       aliasCommand: {
         type: "list_alias",
       },
-    });
+    };
+
+    return new ScriptStatement(props as any);
   }
 }

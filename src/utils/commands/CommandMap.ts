@@ -20,6 +20,7 @@ import {
 } from "./projectCommands";
 import { StopIfCommand, StopIfNotCommand } from "./stopConditionCommands";
 import { SettingsCommand } from "./settingsCommand";
+import { RootCommand } from "./rootCommand";
 
 /**
  * Maps command names to their full names, abbreviations and allowed options
@@ -28,6 +29,7 @@ export const COMMAND_MAP: { [key: string]: BaseCommandInfo } = {
   // Basic commands
   repeat: new RepeatCommand(),
   settings: new SettingsCommand(),
+  root: new RootCommand(),
 
   // Content commands
   chat: new ChatCommand(),
@@ -69,26 +71,14 @@ export function getFullCommand(abbr: string): string | undefined {
     }
   }
 
-  // Handle command abbreviations
-  switch (abbr.toLowerCase()) {
-    case "c":
-      return "chat";
-    case "a":
-      return "artifacts";
-    case "p":
-      return "project";
-    case "sp":
-      return "search_project";
-    case "qp":
-      return "query_project";
-    case "s":
-      return "settings";
-    default:
-      const entry = Object.entries(COMMAND_MAP).find(
-        ([_, info]) => info.abbreviation === abbr.toLowerCase()
-      );
-      return entry?.[0];
-  }
+  const lowerAbbr = abbr.toLowerCase();
+
+  // Find command by abbreviation in COMMAND_MAP
+  const entry = Object.entries(COMMAND_MAP).find(
+    ([_, info]) => info.abbreviation === lowerAbbr
+  );
+
+  return entry?.[0];
 }
 
 /**

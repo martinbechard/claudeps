@@ -34,9 +34,15 @@ export class ScriptExecutionManager {
   ) {
     this.statusManager = statusManager;
     this.handleLog = handleLog;
+    const commandExecutor = new CommandExecutor(
+      statusManager,
+      handleLog,
+      outputElement
+    );
     this.scriptRunner = new ScriptRunner(
       handleLog,
-      new CommandExecutor(statusManager, handleLog, outputElement)
+      commandExecutor,
+      statusManager
     );
   }
 

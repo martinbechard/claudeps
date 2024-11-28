@@ -30,13 +30,21 @@ export class ChatCommand extends BaseCommandInfo {
   public override async execute(params: ExecuteParams): Promise<boolean> {
     try {
       params.outputElement.innerHTML = "";
+      params.handleLog("Retrieving conversation...");
+      await params.setStatus("working", "Retrieving conversation");
+
       await ConversationRetrieval.displayCurrentConversation(
         params.statement.options || {},
         params.outputElement
       );
+
+      await params.setStatus("ready", "Conversation retrieved successfully");
+      params.handleLog("Conversation retrieved successfully", "success");
       return true;
     } catch (error) {
-      console.error("Chat command execution failed:", error);
+      const message = error instanceof Error ? error.message : "Unknown error";
+      params.handleLog(`Chat command execution failed: ${message}`, "error");
+      await params.setStatus("error", message);
       return false;
     }
   }
@@ -61,13 +69,24 @@ export class ArtifactsCommand extends BaseCommandInfo {
   public override async execute(params: ExecuteParams): Promise<boolean> {
     try {
       params.outputElement.innerHTML = "";
+      params.handleLog("Retrieving artifacts...");
+      await params.setStatus("working", "Retrieving artifacts");
+
       await ConversationRetrieval.displayCurrentConversation(
         params.statement.options || {},
         params.outputElement
       );
+
+      await params.setStatus("ready", "Artifacts retrieved successfully");
+      params.handleLog("Artifacts retrieved successfully", "success");
       return true;
     } catch (error) {
-      console.error("Artifacts command execution failed:", error);
+      const message = error instanceof Error ? error.message : "Unknown error";
+      params.handleLog(
+        `Artifacts command execution failed: ${message}`,
+        "error"
+      );
+      await params.setStatus("error", message);
       return false;
     }
   }

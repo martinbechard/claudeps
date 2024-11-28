@@ -7,7 +7,7 @@
 
 import type { Script, ScriptStatement, StopCondition } from "../types";
 import { CommandExecutor } from "./CommandExecutor";
-import { COMMAND_MAP } from "../utils/commands/CommandMap";
+import type { StatusManager } from "../ui/components/StatusManager";
 
 /**
  * Callback type for logging output from the script runner.
@@ -26,10 +26,16 @@ export class ScriptRunner {
   private readonly MAX_ATTEMPTS_WAIT_RESPONSE: number = 300;
   private readonly CHECK_INTERVAL: number = 100;
   private readonly commandExecutor: CommandExecutor;
+  private readonly statusManager: StatusManager;
 
-  constructor(logCallback: LogCallback, commandExecutor: CommandExecutor) {
+  constructor(
+    logCallback: LogCallback,
+    commandExecutor: CommandExecutor,
+    statusManager: StatusManager
+  ) {
     this.logCallback = logCallback;
     this.commandExecutor = commandExecutor;
+    this.statusManager = statusManager;
   }
 
   /**
@@ -38,31 +44,11 @@ export class ScriptRunner {
    * @throws Error if command execution fails
    */
   private async executeCommand(script: ScriptStatement): Promise<void> {
-    // Handle alias commands first
-    if (script.aliasCommand) {
-      await this.commandExecutor.handleAliasCommand(script);
-      return;
-    }
-
-    // Handle other commands
-    if (!script.command) {
+    if (!script.command && !script.aliasCommand) {
       throw new Error("No command specified");
     }
 
-    // Try to execute using command class first
-    const commandInfo = COMMAND_MAP[script.command];
-    if (commandInfo) {
-      const success = await commandInfo.execute({
-        statement: script,
-        outputElement: this.commandExecutor.getOutputElement(),
-      });
-      if (success) {
-        return;
-      }
-    }
-
-    // If we get here, no command class handled it
-    throw new Error(`Unknown command: ${script.command}`);
+    await this.commandExecutor.executeCommand(script);
   }
 
   /**

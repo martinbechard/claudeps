@@ -4,136 +4,210 @@
  * File: tests/utils/commands/simpleCommands.test.ts
  */
 
-import { describe, expect, it } from "@jest/globals";
+import { describe, expect, it, jest, beforeEach } from "@jest/globals";
 import {
   simpleCommands,
   SimpleCommand,
 } from "../../../src/utils/commands/simpleCommands";
+import {
+  getOrganizationId,
+  getProjectUuid,
+} from "../../../src/utils/getClaudeIds";
+
+// Mock getClaudeIds functions
+jest.mock("../../../src/utils/getClaudeIds", () => ({
+  getOrganizationId: jest.fn(),
+  getProjectUuid: jest.fn(),
+}));
 
 describe("simpleCommands", () => {
-  it("should contain all required commands", () => {
-    const expectedCommands = [
-      "search_project",
-      "project",
-      "chat",
-      "artifacts",
-      "knowledge",
-    ];
+  // Store original window.location
+  const originalLocation = window.location;
 
-    expectedCommands.forEach((cmd) => {
-      const found = simpleCommands.some((simpleCmd) =>
-        simpleCmd.command.includes(`/${cmd}`)
+  beforeEach(() => {
+    // Reset all mocks
+    jest.clearAllMocks();
+
+    // Mock window.location
+    delete (window as any).location;
+    window.location = {
+      ...originalLocation,
+      pathname: "/",
+    };
+  });
+
+  afterAll(() => {
+    // Restore original window.location
+    window.location = originalLocation;
+  });
+
+  describe("URL detection", () => {
+    it("should detect project URLs", () => {
+      window.location.pathname = "/project/123";
+      const searchCmd = simpleCommands.find((cmd) => cmd.label === "Search");
+      expect(searchCmd?.isVisible?.()).resolves.toBe(true);
+    });
+
+    it("should detect chat URLs", () => {
+      window.location.pathname = "/chat";
+      const chatCmd = simpleCommands.find(
+        (cmd) => cmd.label === "Current Chat"
       );
-      expect(found).toBe(true);
+      expect(chatCmd?.isVisible?.()).resolves.toBe(true);
+    });
+
+    it("should not show project commands on non-project URLs", () => {
+      window.location.pathname = "/other";
+      const searchCmd = simpleCommands.find((cmd) => cmd.label === "Search");
+      expect(searchCmd?.isVisible?.()).resolves.toBe(false);
+    });
+
+    it("should not show chat commands on non-chat URLs", () => {
+      window.location.pathname = "/other";
+      const chatCmd = simpleCommands.find(
+        (cmd) => cmd.label === "Current Chat"
+      );
+      expect(chatCmd?.isVisible?.()).resolves.toBe(false);
     });
   });
 
-  it("should have correct structure for each command", () => {
-    simpleCommands.forEach((cmd) => {
-      expect(cmd).toHaveProperty("label");
-      expect(cmd).toHaveProperty("command");
-      expect(cmd.label).toBeTruthy();
-      expect(cmd.command.startsWith("/")).toBe(true);
+  describe("Project context", () => {
+    beforeEach(() => {
+      window.location.pathname = "/chat";
     });
-  });
 
-  describe("Search command", () => {
-    const searchCmd = simpleCommands.find((cmd) => cmd.label === "Search");
+    it("should show project commands when project context is available in chat", async () => {
+      jest.mocked(getOrganizationId).mockReturnValue("org123");
+      jest.mocked(getProjectUuid).mockResolvedValue("proj123");
 
-    it("should have correct configuration", () => {
-      expect(searchCmd).toBeDefined();
-      expect(searchCmd).toMatchObject({
-        label: "Search",
-        command: "/search_project ",
-        className: "search-button",
-        noAutoRun: true,
+      const searchCmd = simpleCommands.find((cmd) => cmd.label === "Search");
+      expect(await searchCmd?.isVisible?.()).toBe(true);
+    });
+
+    it("should not show project commands when project context is unavailable in chat", async () => {
+      jest.mocked(getOrganizationId).mockReturnValue("org123");
+      jest.mocked(getProjectUuid).mockRejectedValue(new Error("No project"));
+
+      const searchCmd = simpleCommands.find((cmd) => cmd.label === "Search");
+      expect(await searchCmd?.isVisible?.()).toBe(false);
+    });
+
+    it("should not show project commands when org ID is unavailable", async () => {
+      jest.mocked(getOrganizationId).mockImplementation(() => {
+        throw new Error("No org ID");
       });
-      expect(searchCmd?.isVisible).toBeDefined();
-    });
 
-    it("should have space after command for user input", () => {
-      expect(searchCmd?.command.endsWith(" ")).toBe(true);
+      const searchCmd = simpleCommands.find((cmd) => cmd.label === "Search");
+      expect(await searchCmd?.isVisible?.()).toBe(false);
     });
   });
 
-  describe("Project Chats command", () => {
-    const projectCmd = simpleCommands.find(
-      (cmd) => cmd.label === "Project Chats"
-    );
+  describe("Command visibility rules", () => {
+    it("Search command should be visible in project context", async () => {
+      window.location.pathname = "/project/123";
+      const searchCmd = simpleCommands.find((cmd) => cmd.label === "Search");
+      expect(await searchCmd?.isVisible?.()).toBe(true);
+      expect(searchCmd?.noAutoRun).toBe(true);
+    });
 
-    it("should have correct configuration", () => {
-      expect(projectCmd).toBeDefined();
-      expect(projectCmd).toMatchObject({
-        label: "Project Chats",
-        command: "/project",
-        className: "project-button",
+    it("Project Chats should be visible in project context", async () => {
+      window.location.pathname = "/project/123";
+      const projectCmd = simpleCommands.find(
+        (cmd) => cmd.label === "Project Chats"
+      );
+      expect(await projectCmd?.isVisible?.()).toBe(true);
+    });
+
+    it("Current Chat should only be visible in chat context", async () => {
+      window.location.pathname = "/chat";
+      const chatCmd = simpleCommands.find(
+        (cmd) => cmd.label === "Current Chat"
+      );
+      expect(await chatCmd?.isVisible?.()).toBe(true);
+
+      window.location.pathname = "/project/123";
+      expect(await chatCmd?.isVisible?.()).toBe(false);
+    });
+
+    it("Artifacts should only be visible in chat context", async () => {
+      window.location.pathname = "/chat";
+      const artifactsCmd = simpleCommands.find(
+        (cmd) => cmd.label === "Artifacts"
+      );
+      expect(await artifactsCmd?.isVisible?.()).toBe(true);
+
+      window.location.pathname = "/project/123";
+      expect(await artifactsCmd?.isVisible?.()).toBe(false);
+    });
+
+    it("Knowledge should be visible in project context", async () => {
+      window.location.pathname = "/project/123";
+      const knowledgeCmd = simpleCommands.find(
+        (cmd) => cmd.label === "Knowledge"
+      );
+      expect(await knowledgeCmd?.isVisible?.()).toBe(true);
+    });
+  });
+
+  describe("Command structure", () => {
+    it("should contain all required commands", () => {
+      const expectedCommands = [
+        "search_project",
+        "project",
+        "chat",
+        "artifacts",
+        "knowledge",
+      ];
+
+      expectedCommands.forEach((cmd) => {
+        const found = simpleCommands.some((simpleCmd) =>
+          simpleCmd.command.includes(`/${cmd}`)
+        );
+        expect(found).toBe(true);
       });
-      expect(projectCmd?.isVisible).toBeDefined();
     });
-  });
 
-  describe("Basic commands", () => {
-    const basicCmds = [
-      { label: "Current Chat", command: "/chat" },
-      { label: "Artifacts", command: "/artifacts" },
-      { label: "Knowledge", command: "/knowledge" },
-    ];
+    it("should have correct structure for each command", () => {
+      simpleCommands.forEach((cmd) => {
+        expect(cmd).toHaveProperty("label");
+        expect(cmd).toHaveProperty("command");
+        expect(cmd.label).toBeTruthy();
+        expect(cmd.command.startsWith("/")).toBe(true);
+      });
+    });
 
-    basicCmds.forEach(({ label, command }) => {
-      describe(label, () => {
-        const cmd = simpleCommands.find((cmd) => cmd.label === label);
+    describe("Search command", () => {
+      const searchCmd = simpleCommands.find((cmd) => cmd.label === "Search");
 
-        it("should have correct basic configuration", () => {
-          expect(cmd).toBeDefined();
-          expect(cmd).toMatchObject({
-            label,
-            command,
-          });
-          expect(cmd?.isVisible).toBeDefined();
+      it("should have correct configuration", () => {
+        expect(searchCmd).toBeDefined();
+        expect(searchCmd).toMatchObject({
+          label: "Search",
+          command: "/search_project ",
+          className: "search-button",
+          noAutoRun: true,
         });
+        expect(searchCmd?.isVisible).toBeDefined();
+      });
 
-        it("should not have className or noAutoRun", () => {
-          expect(cmd?.className).toBeUndefined();
-          expect(cmd?.noAutoRun).toBeUndefined();
-        });
+      it("should have space after command for user input", () => {
+        expect(searchCmd?.command.endsWith(" ")).toBe(true);
       });
     });
-  });
 
-  describe("Command order", () => {
-    const expectedOrder = [
-      "Search",
-      "Project Chats",
-      "Current Chat",
-      "Artifacts",
-      "Knowledge",
-    ];
+    describe("Command order", () => {
+      const expectedOrder = [
+        "Search",
+        "Project Chats",
+        "Current Chat",
+        "Artifacts",
+        "Knowledge",
+      ];
 
-    it("should maintain specific order of commands", () => {
-      const labels = simpleCommands.map((cmd) => cmd.label);
-      expect(labels).toEqual(expectedOrder);
-    });
-  });
-
-  describe("SimpleCommand interface", () => {
-    it("should allow optional properties", () => {
-      const validCommand: SimpleCommand = {
-        label: "Test",
-        command: "/test",
-      };
-
-      const withOptions: SimpleCommand = {
-        label: "Test",
-        command: "/test",
-        className: "test-class",
-        noAutoRun: true,
-        isVisible: async () => true,
-      };
-
-      // TypeScript will catch if these assignments are invalid
-      expect(validCommand.label).toBe("Test");
-      expect(withOptions.className).toBe("test-class");
-      expect(typeof withOptions.isVisible).toBe("function");
+      it("should maintain specific order of commands", () => {
+        const labels = simpleCommands.map((cmd) => cmd.label);
+        expect(labels).toEqual(expectedOrder);
+      });
     });
   });
 });

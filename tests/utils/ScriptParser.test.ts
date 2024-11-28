@@ -42,7 +42,7 @@ describe("ScriptParser - Basic Structure", () => {
   });
 
   it("should handle mixed command and prompt statements", () => {
-    const input = "Tell me a joke; /repeat MAX 3 Another joke; Final joke";
+    const input = "Tell me a joke; /repeat /max 3 Another joke; Final joke";
     const result = ScriptParser.parse(input);
 
     expect(result.statements).toHaveLength(3);
@@ -59,6 +59,72 @@ describe("ScriptParser - Basic Structure", () => {
       isCommand: false,
       command: null,
       options: {},
+    });
+  });
+});
+
+describe("ScriptParser - Settings Command", () => {
+  it("should parse settings command with no options", () => {
+    const input = "/settings";
+    const result = ScriptParser.parse(input);
+
+    expect(result.statements[0]).toEqual({
+      isCommand: true,
+      command: "settings",
+      prompt: "",
+      options: {},
+    });
+  });
+
+  it("should parse settings command with single option", () => {
+    const input = "/settings /enable_api true";
+    const result = ScriptParser.parse(input);
+
+    expect(result.statements[0]).toEqual({
+      isCommand: true,
+      command: "settings",
+      prompt: "",
+      options: { enable_api: "true" },
+    });
+  });
+
+  it("should parse settings command with multiple options", () => {
+    const input = "/settings /theme dark /debug_trace true /debug_window false";
+    const result = ScriptParser.parse(input);
+
+    expect(result.statements[0]).toEqual({
+      isCommand: true,
+      command: "settings",
+      prompt: "",
+      options: {
+        theme: "dark",
+        debug_trace: "true",
+        debug_window: "false",
+      },
+    });
+  });
+
+  it("should parse settings command with API key", () => {
+    const input = "/settings /api_key sk-ant-test123";
+    const result = ScriptParser.parse(input);
+
+    expect(result.statements[0]).toEqual({
+      isCommand: true,
+      command: "settings",
+      prompt: "",
+      options: { api_key: "sk-ant-test123" },
+    });
+  });
+
+  it("should parse settings command with model", () => {
+    const input = "/settings /model claude-3-5-sonnet-20241022";
+    const result = ScriptParser.parse(input);
+
+    expect(result.statements[0]).toEqual({
+      isCommand: true,
+      command: "settings",
+      prompt: "",
+      options: { model: "claude-3-5-sonnet-20241022" },
     });
   });
 });
@@ -146,12 +212,13 @@ describe("ScriptParser - Alias Commands", () => {
     expect(result.statements[0]).toEqual({
       isCommand: true,
       command: "alias",
+      prompt: "",
+      options: {},
       aliasCommand: {
         type: "alias",
         name: "greet",
         text: "Hello, how can I assist you today?",
       },
-      options: {},
     });
   });
 
@@ -162,11 +229,12 @@ describe("ScriptParser - Alias Commands", () => {
     expect(result.statements[0]).toEqual({
       isCommand: true,
       command: "delete_alias",
+      prompt: "",
+      options: {},
       aliasCommand: {
         type: "delete_alias",
         name: "greet",
       },
-      options: {},
     });
   });
 
@@ -177,10 +245,11 @@ describe("ScriptParser - Alias Commands", () => {
     expect(result.statements[0]).toEqual({
       isCommand: true,
       command: "list_alias",
+      prompt: "",
+      options: {},
       aliasCommand: {
         type: "list_alias",
       },
-      options: {},
     });
   });
 });
@@ -220,6 +289,7 @@ describe("ScriptParser - ClaudePS Commands", () => {
     expect(result.statements[0]).toEqual({
       isCommand: true,
       command: "search_project",
+      prompt: "budget report",
       options: {},
       searchText: "budget report",
     });
@@ -293,5 +363,11 @@ describe("ScriptParser - Error Handling", () => {
     expect(() =>
       ScriptParser.parse("/repeat test /stop_if success /stop_if_not failure")
     ).toThrow("Cannot use both /stop_if and /stop_if_not options together");
+  });
+
+  it("should throw on missing value for settings option", () => {
+    expect(() => ScriptParser.parse("/settings /theme")).toThrow(
+      'Missing value for option: "/theme", command "/settings"'
+    );
   });
 });

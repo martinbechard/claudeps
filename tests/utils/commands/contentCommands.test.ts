@@ -10,25 +10,27 @@ import {
   ArtifactsCommand,
 } from "../../../src/utils/commands/contentCommands";
 import { ConversationRetrieval } from "../../../src/services/ConversationRetrieval";
-import { ParsedCommandLine } from "../../../src/types";
+import { ParsedCommandLine, ScriptStatement } from "../../../src/types";
+import {
+  mockOutputElement,
+  mockHandleLog,
+  mockSetStatus,
+  resetMocks,
+} from "../../__mocks__/commandTestUtils";
 
-// Mock ConversationRetrieval
+// Mock ConversationRetrieval with proper types
 jest.mock("../../../src/services/ConversationRetrieval", () => ({
   ConversationRetrieval: {
-    displayCurrentConversation: jest.fn(),
+    displayCurrentConversation: jest.fn() as jest.MockedFunction<
+      typeof ConversationRetrieval.displayCurrentConversation
+    >,
   },
 }));
 
-// Create mock output element
-const mockOutputElement = document.createElement("div");
-
 beforeEach(() => {
-  // Reset the mock element's innerHTML before each test
-  mockOutputElement.innerHTML = "";
   // Mock console.error to suppress error output in tests
   jest.spyOn(console, "error").mockImplementation(() => {});
-  // Clear all mocks
-  jest.clearAllMocks();
+  resetMocks();
 });
 
 describe("ChatCommand", () => {
@@ -38,81 +40,78 @@ describe("ChatCommand", () => {
     command = new ChatCommand();
   });
 
-  describe("Constructor", () => {
-    it("should set correct command name and abbreviation", () => {
-      expect(command.full).toBe("chat");
-      expect(command.abbreviation).toBe("c");
-    });
-
-    it("should set correct option definitions", () => {
-      expect(command.options).toEqual({
-        artifacts: "no_arg",
-      });
-    });
-  });
-
   describe("parse", () => {
-    it("should create ScriptStatement without artifacts option", () => {
+    it("should create correct ScriptStatement for chat command", () => {
       const input: ParsedCommandLine = {
         command: "chat",
         rawCommand: "/chat",
-        prompt: "",
         options: {},
+        prompt: "",
       };
 
       const result = command.parse(input);
 
-      expect(result).toMatchObject({
-        isCommand: true,
-        command: "chat",
-        prompt: "",
-        options: {
-          includeConversation: true,
-          includeArtifacts: false,
-        },
-      });
+      expect(result).toEqual(
+        new ScriptStatement({
+          isCommand: true,
+          command: "chat",
+          options: {
+            includeConversation: true,
+            includeArtifacts: false,
+          },
+          prompt: "",
+        })
+      );
     });
 
-    it("should create ScriptStatement with artifacts option", () => {
+    it("should include artifacts when artifacts option is present", () => {
       const input: ParsedCommandLine = {
         command: "chat",
-        rawCommand: "/chat /artifacts",
+        rawCommand: "/chat --artifacts",
+        options: { artifacts: "" }, // Empty string instead of undefined
         prompt: "",
-        options: { artifacts: "" },
       };
 
       const result = command.parse(input);
 
-      expect(result).toMatchObject({
-        isCommand: true,
-        command: "chat",
-        prompt: "",
-        options: {
-          includeConversation: true,
-          includeArtifacts: true,
-        },
-      });
+      expect(result).toEqual(
+        new ScriptStatement({
+          isCommand: true,
+          command: "chat",
+          options: {
+            includeConversation: true,
+            includeArtifacts: true,
+          },
+          prompt: "",
+        })
+      );
     });
   });
 
   describe("execute", () => {
     beforeEach(() => {
-      jest
-        .mocked(ConversationRetrieval.displayCurrentConversation)
-        .mockResolvedValue();
+      (
+        ConversationRetrieval.displayCurrentConversation as jest.MockedFunction<
+          typeof ConversationRetrieval.displayCurrentConversation
+        >
+      ).mockResolvedValue();
     });
 
-    it("should execute successfully", async () => {
-      const statement = command.parse({
+    it("should execute chat command successfully", async () => {
+      const statement = new ScriptStatement({
+        isCommand: true,
         command: "chat",
-        rawCommand: "/chat",
+        options: {
+          includeConversation: true,
+        },
         prompt: "",
-        options: {},
       });
 
       const result = await command.execute({
         statement,
         outputElement: mockOutputElement,
+        handleLog: mockHandleLog,
+        setStatus: mockSetStatus,
       });
 
       expect(result).toBe(true);
@@ -120,29 +119,47 @@ describe("ChatCommand", () => {
         ConversationRetrieval.displayCurrentConversation
       ).toHaveBeenCalledWith(statement.options, mockOutputElement);
       expect(mockOutputElement.innerHTML).toBe("");
+      expect(mockHandleLog).toHaveBeenCalledWith("Retrieving conversation...");
+      expect(mockSetStatus).toHaveBeenCalledWith(
+        "ready",
+        "Conversation retrieved successfully"
+      );
     });
 
-    it("should fail when displayCurrentConversation throws", async () => {
-      jest
-        .mocked(ConversationRetrieval.displayCurrentConversation)
-        .mockRejectedValue(new Error("Display failed"));
+    it("should handle display error gracefully", async () => {
+      (
+        ConversationRetrieval.displayCurrentConversation as jest.MockedFunction<
+          typeof ConversationRetrieval.displayCurrentConversation
+        >
+      ).mockRejectedValue(new Error("Display failed"));
 
-      const statement = command.parse({
+      const statement = new ScriptStatement({
+        isCommand: true,
         command: "chat",
-        rawCommand: "/chat",
+        options: {
+          includeConversation: true,
+        },
         prompt: "",
-        options: {},
       });
 
       const result = await command.execute({
         statement,
         outputElement: mockOutputElement,
+        handleLog: mockHandleLog,
+        setStatus: mockSetStatus,
       });
 
       expect(result).toBe(false);
       expect(
         ConversationRetrieval.displayCurrentConversation
       ).toHaveBeenCalled();
+      expect(mockHandleLog).toHaveBeenCalledWith(
+        expect.stringContaining(
+          "Chat command execution failed: Display failed"
+        ),
+        "error"
+      );
+      expect(mockSetStatus).toHaveBeenCalledWith("error", expect.any(String));
     });
   });
 });
@@ -154,53 +171,54 @@ describe("ArtifactsCommand", () => {
     command = new ArtifactsCommand();
   });
 
-  describe("Constructor", () => {
-    it("should set correct command name and abbreviation", () => {
-      expect(command.full).toBe("artifacts");
-      expect(command.abbreviation).toBe("a");
-    });
-  });
-
   describe("parse", () => {
-    it("should create correct ScriptStatement", () => {
+    it("should create correct ScriptStatement for artifacts command", () => {
       const input: ParsedCommandLine = {
         command: "artifacts",
         rawCommand: "/artifacts",
-        prompt: "",
         options: {},
+        prompt: "",
       };
 
       const result = command.parse(input);
 
-      expect(result).toMatchObject({
-        isCommand: true,
-        command: "artifacts",
-        prompt: "",
-        options: {
-          includeArtifacts: true,
-        },
-      });
+      expect(result).toEqual(
+        new ScriptStatement({
+          isCommand: true,
+          command: "artifacts",
+          options: {
+            includeArtifacts: true,
+          },
+          prompt: "",
+        })
+      );
     });
   });
 
   describe("execute", () => {
     beforeEach(() => {
-      jest
-        .mocked(ConversationRetrieval.displayCurrentConversation)
-        .mockResolvedValue();
+      (
+        ConversationRetrieval.displayCurrentConversation as jest.MockedFunction<
+          typeof ConversationRetrieval.displayCurrentConversation
+        >
+      ).mockResolvedValue();
     });
 
-    it("should execute successfully", async () => {
-      const statement = command.parse({
+    it("should execute artifacts command successfully", async () => {
+      const statement = new ScriptStatement({
+        isCommand: true,
         command: "artifacts",
-        rawCommand: "/artifacts",
+        options: {
+          includeArtifacts: true,
+        },
         prompt: "",
-        options: {},
       });
 
       const result = await command.execute({
         statement,
         outputElement: mockOutputElement,
+        handleLog: mockHandleLog,
+        setStatus: mockSetStatus,
       });
 
       expect(result).toBe(true);
@@ -208,29 +226,47 @@ describe("ArtifactsCommand", () => {
         ConversationRetrieval.displayCurrentConversation
       ).toHaveBeenCalledWith(statement.options, mockOutputElement);
       expect(mockOutputElement.innerHTML).toBe("");
+      expect(mockHandleLog).toHaveBeenCalledWith("Retrieving artifacts...");
+      expect(mockSetStatus).toHaveBeenCalledWith(
+        "ready",
+        "Artifacts retrieved successfully"
+      );
     });
 
-    it("should fail when displayCurrentConversation throws", async () => {
-      jest
-        .mocked(ConversationRetrieval.displayCurrentConversation)
-        .mockRejectedValue(new Error("Display failed"));
+    it("should handle artifacts display error gracefully", async () => {
+      (
+        ConversationRetrieval.displayCurrentConversation as jest.MockedFunction<
+          typeof ConversationRetrieval.displayCurrentConversation
+        >
+      ).mockRejectedValue(new Error("Display failed"));
 
-      const statement = command.parse({
+      const statement = new ScriptStatement({
+        isCommand: true,
         command: "artifacts",
-        rawCommand: "/artifacts",
+        options: {
+          includeArtifacts: true,
+        },
         prompt: "",
-        options: {},
       });
 
       const result = await command.execute({
         statement,
         outputElement: mockOutputElement,
+        handleLog: mockHandleLog,
+        setStatus: mockSetStatus,
       });
 
       expect(result).toBe(false);
       expect(
         ConversationRetrieval.displayCurrentConversation
       ).toHaveBeenCalled();
+      expect(mockHandleLog).toHaveBeenCalledWith(
+        expect.stringContaining(
+          "Artifacts command execution failed: Display failed"
+        ),
+        "error"
+      );
+      expect(mockSetStatus).toHaveBeenCalledWith("error", expect.any(String));
     });
   });
 });

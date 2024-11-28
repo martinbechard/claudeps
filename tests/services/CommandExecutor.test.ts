@@ -14,6 +14,7 @@ import { AliasService } from "../../src/services/AliasService";
 import { ScriptStatement } from "../../src/types";
 import { ThemeManager } from "../../src/ui/theme";
 import type { StatusManager } from "../../src/ui/components/StatusManager";
+import { COMMAND_MAP } from "../../src/utils/commands/CommandMap";
 
 // Mock dependencies
 jest.mock("../../src/services/DocumentRetrieval");
@@ -71,6 +72,11 @@ describe("CommandExecutor", () => {
     (
       ConversationRetrieval.displayCurrentConversation as jest.Mock
     ).mockResolvedValue(undefined);
+
+    // Mock command execute methods to return true by default
+    Object.values(COMMAND_MAP).forEach((command) => {
+      jest.spyOn(command, "execute").mockResolvedValue(true);
+    });
   });
 
   afterEach(() => {
@@ -78,170 +84,67 @@ describe("CommandExecutor", () => {
     jest.clearAllMocks();
   });
 
-  describe("Container Management", () => {
-    test("preserves existing content when handling knowledge command", async () => {
-      await commandExecutor.handleKnowledgeCommand();
+  describe("Command Execution", () => {
+    test("executes knowledge command successfully", async () => {
+      const script = new ScriptStatement({
+        isCommand: true,
+        command: "knowledge",
+        prompt: "",
+        options: {},
+      });
 
-      // Verify existing content is still present
-      const existingDiv = container.querySelector("#existing-content");
-      expect(existingDiv).toBeTruthy();
-      expect(existingDiv?.textContent).toBe("Existing content");
+      await commandExecutor.executeCommand(script);
 
-      // Verify log was called
-      expect(handleLog).toHaveBeenCalledWith("Fetching documents...");
+      expect(COMMAND_MAP.knowledge.execute).toHaveBeenCalledWith({
+        statement: script,
+        outputElement: container,
+        handleLog,
+        setStatus: expect.any(Function),
+      });
     });
 
-    test("preserves existing content when handling project command", async () => {
-      await commandExecutor.handleProjectCommand();
+    test("executes project command successfully", async () => {
+      const script = new ScriptStatement({
+        isCommand: true,
+        command: "project",
+        prompt: "",
+        options: {},
+      });
 
-      // Verify existing content is still present
-      const existingDiv = container.querySelector("#existing-content");
-      expect(existingDiv).toBeTruthy();
-      expect(existingDiv?.textContent).toBe("Existing content");
+      await commandExecutor.executeCommand(script);
 
-      // Verify log was called
-      expect(handleLog).toHaveBeenCalledWith(
-        "Fetching project conversations..."
-      );
+      expect(COMMAND_MAP.project.execute).toHaveBeenCalledWith({
+        statement: script,
+        outputElement: container,
+        handleLog,
+        setStatus: expect.any(Function),
+      });
     });
 
-    test("preserves existing content when handling search project command", async () => {
+    test("executes search project command successfully", async () => {
       const script = new ScriptStatement({
         isCommand: true,
         command: "search_project",
         searchText: "test query",
+        prompt: "",
         options: {},
       });
 
-      await commandExecutor.handleSearchProjectCommand(script);
+      await commandExecutor.executeCommand(script);
 
-      // Verify existing content is still present
-      const existingDiv = container.querySelector("#existing-content");
-      expect(existingDiv).toBeTruthy();
-      expect(existingDiv?.textContent).toBe("Existing content");
-
-      // Verify log was called
-      expect(handleLog).toHaveBeenCalledWith(
-        "Searching projects for: test query"
-      );
-    });
-
-    test("preserves existing content when handling conversation command", async () => {
-      await commandExecutor.handleConversationCommand({});
-
-      // Verify existing content is still present
-      const existingDiv = container.querySelector("#existing-content");
-      expect(existingDiv).toBeTruthy();
-      expect(existingDiv?.textContent).toBe("Existing content");
-
-      // Verify log was called
-      expect(handleLog).toHaveBeenCalledWith("Retrieving conversation...");
-    });
-  });
-
-  describe("Error Handling", () => {
-    test("preserves existing content when knowledge command fails", async () => {
-      // Mock error
-      (DocumentRetrieval.fetchDocuments as jest.Mock).mockRejectedValue(
-        new Error("API Error")
-      );
-
-      await commandExecutor.handleKnowledgeCommand();
-
-      // Verify existing content is still present
-      const existingDiv = container.querySelector("#existing-content");
-      expect(existingDiv).toBeTruthy();
-      expect(existingDiv?.textContent).toBe("Existing content");
-
-      // Verify error was logged
-      expect(handleLog).toHaveBeenCalledWith(
-        "Error fetching documents: API Error",
-        "error"
-      );
-    });
-
-    test("preserves existing content when project command fails", async () => {
-      // Mock error
-      (ProjectRetrieval.displayCurrentProject as jest.Mock).mockRejectedValue(
-        new Error("API Error")
-      );
-
-      await commandExecutor.handleProjectCommand();
-
-      // Verify existing content is still present
-      const existingDiv = container.querySelector("#existing-content");
-      expect(existingDiv).toBeTruthy();
-      expect(existingDiv?.textContent).toBe("Existing content");
-
-      // Verify error was logged
-      expect(handleLog).toHaveBeenCalledWith(
-        "Error fetching project conversations: API Error",
-        "error"
-      );
-    });
-
-    test("preserves existing content when search command fails", async () => {
-      // Mock error
-      (
-        ProjectSearchService.searchAndDisplayResults as jest.Mock
-      ).mockRejectedValue(new Error("API Error"));
-
-      const script = new ScriptStatement({
-        isCommand: true,
-        command: "search_project",
-        searchText: "test",
-        options: {},
+      expect(COMMAND_MAP.search_project.execute).toHaveBeenCalledWith({
+        statement: script,
+        outputElement: container,
+        handleLog,
+        setStatus: expect.any(Function),
       });
-
-      await commandExecutor.handleSearchProjectCommand(script);
-
-      // Verify existing content is still present
-      const existingDiv = container.querySelector("#existing-content");
-      expect(existingDiv).toBeTruthy();
-      expect(existingDiv?.textContent).toBe("Existing content");
-
-      // Verify error was logged
-      expect(handleLog).toHaveBeenCalledWith(
-        "Error during project search: API Error",
-        "error"
-      );
-    });
-  });
-
-  describe("Alias Commands", () => {
-    test("preserves existing content when listing aliases", async () => {
-      // Mock aliases
-      (AliasService.getAliasList as jest.Mock).mockResolvedValue([
-        "alias1",
-        "alias2",
-      ]);
-
-      const script = new ScriptStatement({
-        isCommand: true,
-        options: {},
-        aliasCommand: { type: "list_alias" },
-      });
-
-      await commandExecutor.handleAliasCommand(script);
-
-      // Verify existing content is still present
-      const existingDiv = container.querySelector("#existing-content");
-      expect(existingDiv).toBeTruthy();
-      expect(existingDiv?.textContent).toBe("Existing content");
-
-      // Verify aliases were added
-      expect(container.textContent).toContain("alias1");
-      expect(container.textContent).toContain("alias2");
     });
 
-    test("preserves existing content when alias command fails", async () => {
-      // Mock error
-      (AliasService.setAlias as jest.Mock).mockRejectedValue(
-        new Error("Invalid alias")
-      );
-
+    test("executes alias command successfully", async () => {
       const script = new ScriptStatement({
         isCommand: true,
+        command: "alias",
+        prompt: "",
         options: {},
         aliasCommand: {
           type: "alias",
@@ -250,18 +153,74 @@ describe("CommandExecutor", () => {
         },
       });
 
-      await commandExecutor.handleAliasCommand(script);
+      await commandExecutor.executeCommand(script);
 
-      // Verify existing content is still present
+      expect(COMMAND_MAP.alias.execute).toHaveBeenCalledWith({
+        statement: script,
+        outputElement: container,
+        handleLog,
+        setStatus: expect.any(Function),
+      });
+    });
+  });
+
+  describe("Error Handling", () => {
+    test("throws error when command is not specified", async () => {
+      const script = new ScriptStatement({
+        isCommand: true,
+        prompt: "",
+        options: {},
+      });
+
+      await expect(commandExecutor.executeCommand(script)).rejects.toThrow(
+        "No command specified"
+      );
+    });
+
+    test("throws error when command is unknown", async () => {
+      const script = new ScriptStatement({
+        isCommand: true,
+        command: "unknown_command",
+        prompt: "",
+        options: {},
+      });
+
+      await expect(commandExecutor.executeCommand(script)).rejects.toThrow(
+        "Unknown command: unknown_command"
+      );
+    });
+
+    test("throws error when command execution fails", async () => {
+      const script = new ScriptStatement({
+        isCommand: true,
+        command: "knowledge",
+        prompt: "",
+        options: {},
+      });
+
+      // Mock command execution failure
+      jest.spyOn(COMMAND_MAP.knowledge, "execute").mockResolvedValue(false);
+
+      await expect(commandExecutor.executeCommand(script)).rejects.toThrow(
+        "Command execution failed: knowledge"
+      );
+    });
+  });
+
+  describe("Content Preservation", () => {
+    test("preserves existing content after command execution", async () => {
+      const script = new ScriptStatement({
+        isCommand: true,
+        command: "knowledge",
+        prompt: "",
+        options: {},
+      });
+
+      await commandExecutor.executeCommand(script);
+
       const existingDiv = container.querySelector("#existing-content");
       expect(existingDiv).toBeTruthy();
       expect(existingDiv?.textContent).toBe("Existing content");
-
-      // Verify error was logged
-      expect(handleLog).toHaveBeenCalledWith(
-        "Alias command failed: Invalid alias",
-        "error"
-      );
     });
   });
 });

@@ -1,4 +1,4 @@
-import { processQuotedText } from "src/utils/splitText";
+import { processQuotedText } from "@/utils/splitText";
 
 describe("processQuotedText", () => {
   // Empty or invalid inputs

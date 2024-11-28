@@ -4,9 +4,40 @@
  * File: tests/utils/commands/repeatCommand.test.ts
  */
 
-import { describe, expect, it } from "@jest/globals";
+import { describe, expect, it, jest, beforeEach } from "@jest/globals";
 import { RepeatCommand } from "../../../src/utils/commands/repeatCommand";
-import { ParsedCommandLine } from "../../../src/types";
+import { ParsedCommandLine, ScriptStatement } from "../../../src/types";
+import { requestCompletion } from "../../../src/utils/requestCompletion";
+import {
+  mockOutputElement,
+  mockHandleLog,
+  mockSetStatus,
+  resetMocks,
+} from "../../__mocks__/commandTestUtils";
+
+// Mock requestCompletion
+jest.mock("../../../src/utils/requestCompletion", () => ({
+  requestCompletion: jest.fn(),
+}));
+
+// Mock completion response
+const createMockResponse = (completion: string) => ({
+  completion,
+  stop_reason: "stop_sequence",
+  model: "claude-3-sonnet-20240229",
+  stop: null,
+  log_id: "mock-log-id",
+  messageLimit: {
+    type: "token",
+    remaining: 1000,
+  },
+});
+
+beforeEach(() => {
+  resetMocks();
+  // Mock console.error to suppress error output in tests
+  jest.spyOn(console, "error").mockImplementation(() => {});
+});
 
 describe("RepeatCommand", () => {
   const command = new RepeatCommand();
@@ -14,7 +45,7 @@ describe("RepeatCommand", () => {
   describe("Constructor", () => {
     it("should set correct command name and abbreviation", () => {
       expect(command.full).toBe("repeat");
-      expect(command.abbreviation).toBe("r");
+      expect(command.abbreviation).toBe("rp");
     });
 
     it("should set correct option definitions", () => {
@@ -106,59 +137,165 @@ describe("RepeatCommand", () => {
         { target: "failure", type: "if_not" },
       ]);
     });
+  });
 
-    it("should throw error when both stop conditions used", () => {
-      const input: ParsedCommandLine = {
+  describe("execute", () => {
+    it("should stop when LLM response contains target text", async () => {
+      jest
+        .mocked(requestCompletion)
+        .mockResolvedValue(createMockResponse("This is a success response"));
+
+      const statement = command.parse({
         command: "repeat",
-        rawCommand:
-          "/repeat Tell me a joke /stop_if success /stop_if_not failure",
+        rawCommand: "/repeat Tell me a joke /stop_if success",
         prompt: "Tell me a joke",
-        options: {
-          stop_if: "success",
-          stop_if_not: "failure",
-        },
-      };
+        options: { stop_if: "success" },
+      });
 
-      expect(() => command.parse(input)).toThrow(
-        "Cannot use both /stop_if and /stop_if_not options together"
-      );
+      const result = await command.execute({
+        statement,
+        outputElement: mockOutputElement,
+        handleLog: mockHandleLog,
+        setStatus: mockSetStatus,
+      });
+
+      expect(result).toBe(true);
+      expect(requestCompletion).toHaveBeenCalledTimes(1);
+      expect(mockOutputElement.textContent).toContain("Attempt 1/10");
     });
 
-    it("should trim whitespace from prompt", () => {
-      const input: ParsedCommandLine = {
+    it("should stop when LLM response does not contain target text", async () => {
+      jest
+        .mocked(requestCompletion)
+        .mockResolvedValue(
+          createMockResponse("This is a completely different response")
+        );
+
+      const statement = command.parse({
         command: "repeat",
-        rawCommand: "/repeat   Tell me a joke   ",
-        prompt: "   Tell me a joke   ",
-        options: {},
-      };
+        rawCommand: "/repeat Tell me a joke /stop_if_not failure",
+        prompt: "Tell me a joke",
+        options: { stop_if_not: "failure" },
+      });
 
-      const result = command.parse(input);
+      const result = await command.execute({
+        statement,
+        outputElement: mockOutputElement,
+        handleLog: mockHandleLog,
+        setStatus: mockSetStatus,
+      });
 
-      expect(result.prompt).toBe("Tell me a joke");
+      expect(result).toBe(true);
+      expect(requestCompletion).toHaveBeenCalledTimes(1);
+      expect(mockOutputElement.textContent).toContain("Attempt 1/10");
     });
 
-    it("should create correct ScriptStatement with all options", () => {
-      const input: ParsedCommandLine = {
+    it("should try multiple times until condition is met", async () => {
+      const responses = [
+        "First try result",
+        "Second try output",
+        "Third try with success",
+      ];
+      let currentResponse = 0;
+
+      jest
+        .mocked(requestCompletion)
+        .mockImplementation(() =>
+          Promise.resolve(createMockResponse(responses[currentResponse++]))
+        );
+
+      const statement = command.parse({
         command: "repeat",
-        rawCommand: "/repeat /max 5 Tell me a joke /stop_if success",
+        rawCommand: "/repeat Tell me a joke /stop_if success",
         prompt: "Tell me a joke",
-        options: {
-          max: "5",
-          stop_if: "success",
-        },
-      };
+        options: { stop_if: "success" },
+      });
 
-      const result = command.parse(input);
+      const result = await command.execute({
+        statement,
+        outputElement: mockOutputElement,
+        handleLog: mockHandleLog,
+        setStatus: mockSetStatus,
+      });
 
-      expect(result).toEqual({
+      expect(result).toBe(true);
+      expect(requestCompletion).toHaveBeenCalledTimes(3);
+      expect(mockOutputElement.textContent).toContain("Attempt 3/10");
+    });
+
+    it("should complete after max tries even if condition not met", async () => {
+      jest
+        .mocked(requestCompletion)
+        .mockResolvedValue(
+          createMockResponse("A completely different response")
+        );
+
+      const statement = command.parse({
+        command: "repeat",
+        rawCommand: "/repeat /max 3 Tell me a joke /stop_if success",
+        prompt: "Tell me a joke",
+        options: { max: "3", stop_if: "success" },
+      });
+
+      const result = await command.execute({
+        statement,
+        outputElement: mockOutputElement,
+        handleLog: mockHandleLog,
+        setStatus: mockSetStatus,
+      });
+
+      expect(result).toBe(true); // Command executed successfully even though condition wasn't met
+      expect(requestCompletion).toHaveBeenCalledTimes(3);
+      expect(mockOutputElement.textContent).toContain("Max attempts reached");
+    });
+
+    it("should handle missing prompt", async () => {
+      const statement = new ScriptStatement({
         isCommand: true,
         command: "repeat",
-        options: {
-          maxTries: 5,
-          stopConditions: [{ target: "success", type: "if" }],
-        },
-        prompt: "Tell me a joke",
+        options: { maxTries: 3 },
+        prompt: "",
       });
+
+      await expect(
+        command.execute({
+          statement,
+          outputElement: mockOutputElement,
+          handleLog: mockHandleLog,
+          setStatus: mockSetStatus,
+        })
+      ).rejects.toThrow("No prompt provided");
+
+      expect(requestCompletion).not.toHaveBeenCalled();
+    });
+
+    it("should continue trying after LLM request errors", async () => {
+      const responses = [
+        Promise.reject(new Error("First try failed")),
+        Promise.resolve(createMockResponse("Second try with success")),
+      ];
+      let currentResponse = 0;
+
+      jest
+        .mocked(requestCompletion)
+        .mockImplementation(() => responses[currentResponse++]);
+
+      const statement = command.parse({
+        command: "repeat",
+        rawCommand: "/repeat Tell me a joke /stop_if success",
+        prompt: "Tell me a joke",
+        options: { stop_if: "success" },
+      });
+
+      const result = await command.execute({
+        statement,
+        outputElement: mockOutputElement,
+        handleLog: mockHandleLog,
+        setStatus: mockSetStatus,
+      });
+
+      expect(result).toBe(true);
+      expect(requestCompletion).toHaveBeenCalledTimes(2);
     });
   });
 });

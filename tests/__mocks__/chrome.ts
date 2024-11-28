@@ -30,7 +30,10 @@ export const chrome = {
     sync: {
       get: jest.fn().mockImplementation((key) => {
         if (typeof key === "string") {
-          return Promise.resolve({ [key]: defaultSettings[key] });
+          // Return empty object if key doesn't exist in defaultSettings
+          return Promise.resolve(
+            key in defaultSettings ? { [key]: defaultSettings[key] } : {}
+          );
         }
         return Promise.resolve(defaultSettings);
       }),

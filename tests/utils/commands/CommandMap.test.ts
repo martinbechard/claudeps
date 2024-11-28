@@ -29,6 +29,8 @@ describe("COMMAND_MAP", () => {
       "alias",
       "list_alias",
       "delete_alias",
+      "settings",
+      "root",
     ];
 
     expectedCommands.forEach((cmd) => {
@@ -46,7 +48,8 @@ describe("getFullCommand", () => {
     expect(getFullCommand("k")).toBe("knowledge");
     expect(getFullCommand("c")).toBe("chat");
     expect(getFullCommand("a")).toBe("artifacts");
-    expect(getFullCommand("r")).toBe("repeat");
+    expect(getFullCommand("r")).toBe("root");
+    expect(getFullCommand("s")).toBe("settings");
   });
 
   it("should handle alias command special cases", () => {
@@ -63,6 +66,8 @@ describe("getFullCommand", () => {
   it("should be case insensitive", () => {
     expect(getFullCommand("P")).toBe("project");
     expect(getFullCommand("SP")).toBe("search_project");
+    expect(getFullCommand("R")).toBe("root");
+    expect(getFullCommand("S")).toBe("settings");
   });
 });
 
@@ -70,11 +75,15 @@ describe("getCommandMatches", () => {
   it("should find exact command matches", () => {
     expect(getCommandMatches("project")).toEqual(["project"]);
     expect(getCommandMatches("chat")).toEqual(["chat"]);
+    expect(getCommandMatches("root")).toEqual(["root"]);
+    expect(getCommandMatches("settings")).toEqual(["settings"]);
   });
 
   it("should find matches by abbreviation", () => {
     expect(getCommandMatches("p")).toEqual(["project"]);
     expect(getCommandMatches("sp")).toEqual(["search_project"]);
+    expect(getCommandMatches("r")).toEqual(["root"]);
+    expect(getCommandMatches("s")).toEqual(["settings"]);
   });
 
   it("should handle alias command special cases", () => {
@@ -91,6 +100,10 @@ describe("getCommandMatches", () => {
   it("should be case insensitive", () => {
     expect(getCommandMatches("PROJECT")).toEqual(["project"]);
     expect(getCommandMatches("P")).toEqual(["project"]);
+    expect(getCommandMatches("ROOT")).toEqual(["root"]);
+    expect(getCommandMatches("R")).toEqual(["root"]);
+    expect(getCommandMatches("SETTINGS")).toEqual(["settings"]);
+    expect(getCommandMatches("S")).toEqual(["settings"]);
   });
 });
 
@@ -105,6 +118,19 @@ describe("getCommandOptionDefinitions", () => {
     expect(getCommandOptionDefinitions("chat")).toEqual({
       artifacts: "no_arg",
     });
+
+    expect(getCommandOptionDefinitions("root")).toEqual({
+      path: "with_arg",
+    });
+
+    expect(getCommandOptionDefinitions("settings")).toEqual({
+      enable_api: "with_arg",
+      api_key: "with_arg",
+      model: "with_arg",
+      theme: "with_arg",
+      debug_trace: "with_arg",
+      debug_window: "with_arg",
+    });
   });
 
   it("should return undefined for commands without options", () => {
@@ -114,9 +140,16 @@ describe("getCommandOptionDefinitions", () => {
 
   it("should handle command abbreviations", () => {
     expect(getCommandOptionDefinitions("r")).toEqual({
-      max: "with_arg",
-      stop_if: "with_prompt",
-      stop_if_not: "with_prompt",
+      path: "with_arg",
+    });
+
+    expect(getCommandOptionDefinitions("s")).toEqual({
+      enable_api: "with_arg",
+      api_key: "with_arg",
+      model: "with_arg",
+      theme: "with_arg",
+      debug_trace: "with_arg",
+      debug_window: "with_arg",
     });
   });
 

@@ -85,6 +85,12 @@ describe("HelpManager", () => {
     // Knowledge & Settings
     expect(content).toContain("/k[nowledge]");
     expect(content).toContain("/s[ettings]");
+    expect(content).toContain("/r[oot]");
+
+    // Root command options
+    expect(content).toContain("View current download root path");
+    expect(content).toContain("Set download root path for all files");
+    expect(content).toContain("Clear download root path");
 
     // Alias commands
     expect(content).toContain("/al[ias]");
@@ -92,7 +98,7 @@ describe("HelpManager", () => {
     expect(content).toContain("/la[list_alias]");
 
     // Loop commands
-    expect(content).toContain("/r[epeat]");
+    expect(content).toContain("/rp[repeat]");
     expect(content).toContain("/stop_if");
     expect(content).toContain("/stop_if_not");
   });
@@ -110,5 +116,13 @@ describe("HelpManager", () => {
     expect(content).toContain(
       "Settings and alias commands are available in any context"
     );
+  });
+
+  test("help text includes root command example", () => {
+    helpManager.show();
+    const content = outputElement.textContent || "";
+
+    expect(content).toContain("/root downloads/claude");
+    expect(content).toContain("/chat /multiple");
   });
 });

@@ -20,12 +20,25 @@ abstract class StopConditionCommandBase extends BaseCommandInfo {
   public parse(parsedCommandLine: ParsedCommandLine): ScriptStatement {
     const target = parsedCommandLine.prompt;
 
-    return new ScriptStatement({
+    // Create ScriptStatement without prompt field to avoid empty string initialization
+    const props = {
       isCommand: true,
       command: parsedCommandLine.command,
       options: { stopConditions: [{ target, type: this.type }] },
-    });
+    };
+
+    // Use type assertion to bypass TypeScript's strict property checks
+    return new ScriptStatement(props as any);
   }
+
+  /**
+   * Stop condition commands do not need execute() implementations because they are
+   * processed during script parsing and execution is handled by the RepeatCommand.
+   *
+   * The processing occurs in:
+   * 1. ScriptParser.ts - parseStatements() merges stop conditions into the preceding statement
+   * 2. RepeatCommand.ts - execute() checks these conditions during each iteration
+   */
 }
 
 export class StopIfCommand extends StopConditionCommandBase {

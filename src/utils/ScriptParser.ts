@@ -112,6 +112,7 @@ export class ScriptParser {
       prompt: text,
       isCommand: false,
       command: null,
+      options: {},
     });
   }
 
@@ -124,7 +125,7 @@ export class ScriptParser {
     // Try BaseCommandInfo's parse method
     const commandInfo = COMMAND_MAP[parsed.command];
     if (commandInfo) {
-      const result = commandInfo.parse(parsed);
+      let result = commandInfo.parse(parsed);
       if (result !== null) {
         return result;
       }

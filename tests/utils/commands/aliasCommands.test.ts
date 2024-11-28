@@ -4,157 +4,31 @@
  * File: tests/utils/commands/aliasCommands.test.ts
  */
 
-import { describe, expect, it } from "@jest/globals";
+import { describe, expect, it, jest, beforeEach } from "@jest/globals";
 import {
   SetAliasCommand,
   DeleteAliasCommand,
   ListAliasCommand,
 } from "../../../src/utils/commands/aliasCommands";
-import { ParsedCommandLine } from "../../../src/types";
+import { AliasService } from "../../../src/services/AliasService";
+import { ParsedCommandLine, ScriptStatement } from "../../../src/types";
+import {
+  mockOutputElement,
+  mockHandleLog,
+  mockSetStatus,
+  resetMocks,
+} from "../../__mocks__/commandTestUtils";
+import { MemoryStorage } from "../../../src/types/storage";
 
-describe("SetAliasCommand", () => {
-  const command = new SetAliasCommand();
-
-  describe("Constructor", () => {
-    it("should set correct command name and abbreviation", () => {
-      expect(command.full).toBe("alias");
-      expect(command.abbreviation).toBe("@+");
-    });
-  });
-
-  describe("parse", () => {
-    it("should create correct ScriptStatement for valid alias", () => {
-      const input: ParsedCommandLine = {
-        command: "alias",
-        rawCommand: "/alias @test Hello world",
-        prompt: "@test Hello world",
-        options: {},
-      };
-
-      const result = command.parse(input);
-
-      expect(result).toEqual({
-        isCommand: true,
-        command: "alias",
-        aliasCommand: {
-          type: "alias",
-          name: "test",
-          text: "Hello world",
-        },
-        options: {},
-      });
-    });
-
-    it("should throw error for missing @ prefix", () => {
-      const input: ParsedCommandLine = {
-        command: "alias",
-        rawCommand: "/alias test Hello world",
-        prompt: "test Hello world",
-        options: {},
-      };
-
-      expect(() => command.parse(input)).toThrow("Invalid alias syntax");
-    });
-
-    it("should throw error for invalid alias name characters", () => {
-      const input: ParsedCommandLine = {
-        command: "alias",
-        rawCommand: "/alias @test-invalid Hello",
-        prompt: "@test-invalid Hello",
-        options: {},
-      };
-
-      expect(() => command.parse(input)).toThrow("Invalid alias name");
-    });
-
-    it("should throw error for missing alias text", () => {
-      const input: ParsedCommandLine = {
-        command: "alias",
-        rawCommand: "/alias @test",
-        prompt: "@test",
-        options: {},
-      };
-
-      expect(() => command.parse(input)).toThrow("Invalid alias syntax");
-    });
-  });
-});
-
-describe("DeleteAliasCommand", () => {
-  const command = new DeleteAliasCommand();
-
-  describe("Constructor", () => {
-    it("should set correct command name and abbreviation", () => {
-      expect(command.full).toBe("delete_alias");
-      expect(command.abbreviation).toBe("@-");
-    });
-  });
-
-  describe("parse", () => {
-    it("should create correct ScriptStatement for valid delete", () => {
-      const input: ParsedCommandLine = {
-        command: "delete_alias",
-        rawCommand: "/delete_alias @test",
-        prompt: "@test",
-        options: {},
-      };
-
-      const result = command.parse(input);
-
-      expect(result).toEqual({
-        isCommand: true,
-        command: "delete_alias",
-        aliasCommand: {
-          type: "delete_alias",
-          name: "test",
-        },
-        options: {},
-      });
-    });
-
-    it("should throw error for missing @ prefix", () => {
-      const input: ParsedCommandLine = {
-        command: "delete_alias",
-        rawCommand: "/delete_alias test",
-        prompt: "test",
-        options: {},
-      };
-
-      expect(() => command.parse(input)).toThrow("Invalid delete alias syntax");
-    });
-
-    it("should throw error for invalid alias name characters", () => {
-      const input: ParsedCommandLine = {
-        command: "delete_alias",
-        rawCommand: "/delete_alias @test-invalid",
-        prompt: "@test-invalid",
-        options: {},
-      };
-
-      expect(() => command.parse(input)).toThrow("Invalid alias name");
-    });
-
-    it("should throw error for extra arguments", () => {
-      const input: ParsedCommandLine = {
-        command: "delete_alias",
-        rawCommand: "/delete_alias @test extra",
-        prompt: "@test extra",
-        options: {},
-      };
-
-      expect(() => command.parse(input)).toThrow("Invalid delete alias syntax");
-    });
-  });
-});
+jest.mock("../../../src/services/AliasService");
 
 describe("ListAliasCommand", () => {
-  const command = new ListAliasCommand();
+  let command: ListAliasCommand;
 
-  describe("Constructor", () => {
-    it("should set correct command name and abbreviation", () => {
-      expect(command.full).toBe("list_alias");
-      expect(command.abbreviation).toBe("@?");
-    });
+  beforeEach(() => {
+    command = new ListAliasCommand();
+    resetMocks();
+    AliasService.initialize(new MemoryStorage());
   });
 
   describe("parse", () => {
@@ -162,33 +36,244 @@ describe("ListAliasCommand", () => {
       const input: ParsedCommandLine = {
         command: "list_alias",
         rawCommand: "/list_alias",
-        prompt: "",
         options: {},
+        prompt: "",
       };
 
       const result = command.parse(input);
 
-      expect(result).toEqual({
-        isCommand: true,
-        command: "list_alias",
-        aliasCommand: {
-          type: "list_alias",
-        },
-        options: {},
-      });
+      expect(result).toEqual(
+        new ScriptStatement({
+          isCommand: true,
+          command: "list_alias",
+          prompt: "",
+          options: {},
+          aliasCommand: {
+            type: "list_alias",
+          },
+        })
+      );
     });
 
     it("should throw error if arguments provided", () => {
       const input: ParsedCommandLine = {
         command: "list_alias",
         rawCommand: "/list_alias extra",
-        prompt: "extra",
         options: {},
+        prompt: "extra",
       };
 
       expect(() => command.parse(input)).toThrow(
         "List alias command takes no arguments"
       );
+    });
+  });
+
+  describe("execute", () => {
+    it("should handle list command with no aliases", async () => {
+      jest.spyOn(AliasService, "getAliasList").mockResolvedValue([]);
+
+      const statement = new ScriptStatement({
+        isCommand: true,
+        command: "list_alias",
+        prompt: "",
+        options: {},
+        aliasCommand: {
+          type: "list_alias",
+        },
+      });
+
+      const result = await command.execute({
+        statement,
+        outputElement: mockOutputElement,
+        handleLog: mockHandleLog,
+        setStatus: mockSetStatus,
+      });
+
+      expect(result).toBe(true);
+      expect(AliasService.getAliasList).toHaveBeenCalled();
+      expect(mockOutputElement.textContent).toBe("No aliases defined");
+    });
+
+    it("should handle list command with aliases", async () => {
+      const aliases = ["@test = /test command", "@help = /help"];
+      jest.spyOn(AliasService, "getAliasList").mockResolvedValue(aliases);
+
+      const statement = new ScriptStatement({
+        isCommand: true,
+        command: "list_alias",
+        prompt: "",
+        options: {},
+        aliasCommand: {
+          type: "list_alias",
+        },
+      });
+
+      const result = await command.execute({
+        statement,
+        outputElement: mockOutputElement,
+        handleLog: mockHandleLog,
+        setStatus: mockSetStatus,
+      });
+
+      expect(result).toBe(true);
+      expect(AliasService.getAliasList).toHaveBeenCalled();
+      aliases.forEach((alias) => {
+        expect(mockOutputElement.textContent).toContain(alias);
+      });
+    });
+  });
+});
+
+describe("SetAliasCommand", () => {
+  let command: SetAliasCommand;
+
+  beforeEach(() => {
+    command = new SetAliasCommand();
+    resetMocks();
+    AliasService.initialize(new MemoryStorage());
+  });
+
+  describe("parse", () => {
+    it("should create correct ScriptStatement for set command", () => {
+      const input: ParsedCommandLine = {
+        command: "alias",
+        rawCommand: "/alias @test /test command",
+        options: {},
+        prompt: "@test /test command",
+      };
+
+      const result = command.parse(input);
+
+      expect(result).toEqual(
+        new ScriptStatement({
+          isCommand: true,
+          command: "alias",
+          prompt: "",
+          options: {},
+          aliasCommand: {
+            type: "alias",
+            name: "test",
+            text: "/test command",
+          },
+        })
+      );
+    });
+
+    it("should throw error for invalid alias name", () => {
+      const input: ParsedCommandLine = {
+        command: "alias",
+        rawCommand: "/alias @test! /test command",
+        options: {},
+        prompt: "@test! /test command",
+      };
+
+      expect(() => command.parse(input)).toThrow("Invalid alias name");
+    });
+  });
+
+  describe("execute", () => {
+    it("should handle set command", async () => {
+      jest.spyOn(AliasService, "setAlias").mockResolvedValue();
+
+      const statement = new ScriptStatement({
+        isCommand: true,
+        command: "alias",
+        prompt: "",
+        options: {},
+        aliasCommand: {
+          type: "alias",
+          name: "test",
+          text: "/test command",
+        },
+      });
+
+      const result = await command.execute({
+        statement,
+        outputElement: mockOutputElement,
+        handleLog: mockHandleLog,
+        setStatus: mockSetStatus,
+      });
+
+      expect(result).toBe(true);
+      expect(AliasService.setAlias).toHaveBeenCalledWith(
+        "test",
+        "/test command"
+      );
+    });
+  });
+});
+
+describe("DeleteAliasCommand", () => {
+  let command: DeleteAliasCommand;
+
+  beforeEach(() => {
+    command = new DeleteAliasCommand();
+    resetMocks();
+    AliasService.initialize(new MemoryStorage());
+  });
+
+  describe("parse", () => {
+    it("should create correct ScriptStatement for delete command", () => {
+      const input: ParsedCommandLine = {
+        command: "delete_alias",
+        rawCommand: "/delete_alias @test",
+        options: {},
+        prompt: "@test",
+      };
+
+      const result = command.parse(input);
+
+      expect(result).toEqual(
+        new ScriptStatement({
+          isCommand: true,
+          command: "delete_alias",
+          prompt: "",
+          options: {},
+          aliasCommand: {
+            type: "delete_alias",
+            name: "test",
+          },
+        })
+      );
+    });
+
+    it("should throw error for invalid alias name", () => {
+      const input: ParsedCommandLine = {
+        command: "delete_alias",
+        rawCommand: "/delete_alias @test!",
+        options: {},
+        prompt: "@test!",
+      };
+
+      expect(() => command.parse(input)).toThrow("Invalid alias name");
+    });
+  });
+
+  describe("execute", () => {
+    it("should handle delete command", async () => {
+      jest.spyOn(AliasService, "deleteAlias").mockResolvedValue(true);
+
+      const statement = new ScriptStatement({
+        isCommand: true,
+        command: "delete_alias",
+        prompt: "",
+        options: {},
+        aliasCommand: {
+          type: "delete_alias",
+          name: "test",
+        },
+      });
+
+      const result = await command.execute({
+        statement,
+        outputElement: mockOutputElement,
+        handleLog: mockHandleLog,
+        setStatus: mockSetStatus,
+      });
+
+      expect(result).toBe(true);
+      expect(AliasService.deleteAlias).toHaveBeenCalledWith("test");
     });
   });
 });

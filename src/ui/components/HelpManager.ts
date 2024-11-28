@@ -36,6 +36,9 @@ export class HelpManager {
     /s[ettings] <option>=<value> - Update settings
       Options: enable_api, api_key, model, theme, debug_trace, debug_window
       Example: /settings theme=dark
+    /r[oot] - View current download root path
+    /r[oot] <path> - Set download root path for all files
+    /r[oot] clear - Clear download root path
     
     Alias Commands:
     /al[ias] @name <text> - Create or update an alias
@@ -43,9 +46,9 @@ export class HelpManager {
     /la[list_alias] - List all aliases
     
     3. Loop Command Format:
-    /r[epeat] [/max number] [/stop_if condition]
+    /rp[repeat] [/max number] [/stop_if condition]
     or
-    /r[epeat] [/max number] [/stop_if_not condition]
+    /rp[repeat] [/max number] [/stop_if_not condition]
     
     Examples:
     Simple prompt:
@@ -56,12 +59,16 @@ export class HelpManager {
     @joke
     
     With repeat and max tries:
-    /repeat /max 3 /stop_if success
+    /rp /max 3 /stop_if success
     Tell me a joke
     
     With repeat until condition:
-    /repeat /stop_if laugh
+    /rp /stop_if laugh
     Tell me a joke
+    
+    With download root:
+    /root downloads/claude
+    /chat /multiple
     
     Note: Commands are context-sensitive:
     - Project commands require being in a project context
