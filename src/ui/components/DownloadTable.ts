@@ -94,7 +94,7 @@ export class DownloadTable {
           this.previewDialog.show(
             conversation.name || "Conversation Preview",
             conversation.chat_messages,
-            undefined,
+            `https://claude.ai/chat/${conversationId}`,
             messageId,
             conversationId
           );
@@ -585,7 +585,7 @@ export class DownloadTable {
     // Create new wrapper
     this.wrapper = this.createWrapper();
 
-    if (this.items.length === 0) {
+    if (this.items.length === 0 && !this.showResults) {
       this.wrapper.appendChild(createEmptyState("No documents found"));
       this.container.appendChild(this.wrapper);
       return;

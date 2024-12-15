@@ -189,6 +189,7 @@ export class ProjectSearchService {
         const docInfo = this.createDocumentInfo(conv);
         table.addRow(docInfo);
       }
+      table.render();
 
       // If search text provided, process each conversation
       if (searchText) {
