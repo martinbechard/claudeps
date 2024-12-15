@@ -4,20 +4,20 @@ Copyright (c) 2024 Martin Bechard Martin.Bechard@DevConsult.ca
 
 ## Introducing the PromptScript Language for LLMs
 
-**PromptScript** is a scripting language designed to control a Large Language Model (LLM). 
+**PromptScript** is a scripting language designed to control a Large Language Model (LLM).
 It enables users to automate complex scenarios, for example leveraging chain-of-thought.
 
-PS is an acronym that stands for Prompt Script, which was the original name, but because it can be a tongue-twister to say quickly, was shortened to just "PS". 
+PS is an acronym that stands for Prompt Script, which was the original name, but because it can be a tongue-twister to say quickly, was shortened to just "PS".
 
 PromptScript automates interactions with the LLM by sending prompts, executing commands, and issuing follow-up prompts based on the responses received.
 
 It also provides features to make reuse of prompts easy, and support extraction of files created by the LLM.
 
-
 **Note:** All commands start with `/` to make it easier to distinguish them from prompts that might contain some of the same words. Keywords are **not case-sensitive**.
 
 ### The ClaudePS Tool
-ClaudePS is a Chrome Extension that implements the PS language for use with the Claude Projects environment. It is available as Open Source on github: 
+
+ClaudePS is a Chrome Extension that implements the PS language for use with the Claude Projects environment. It is available as Open Source on github:
 
 ![[Screenshot 2024-11-03 at 8.07.31 PM.png]]
 
@@ -34,8 +34,9 @@ _Interesting factoid: most of the code of ClaudePS was generated with Claude Son
   - All commands and keywords start with `/` and are not case-sensitive.
   - A certain number of commands can result in interactive execution of functions which will help manage projects, conversations and artifacts
   - Quotes can be used to include semicolons within a prompt without splitting it.
-  
+
 - **Execution Flow:**
+
   - Each prompt is sent to the LLM one at a time.
     After each prompt, the interpreter waits for the LLM's response before proceeding to the next statement.
   - The flow of the script can be controlled using conditional commands like `/stop_if` and `/stop_if_not`.
@@ -43,14 +44,14 @@ _Interesting factoid: most of the code of ClaudePS was generated with Claude Son
 - **Keyword Abbreviations:**
 
   - Commands and options can be abbreviated to their first letter(s) if applicable.
-  - Example: `/c /a` is equivalent to `/conversation /artifacts`.
-  - 
+  - Example: `/ch /a` is equivalent to `/chat /artifacts`.
+  -
   - **PromptScript Sample**
-  The following script helps overcome a size limitation when generating a large file:
+    The following script helps overcome a size limitation when generating a large file:
 
 ```promptscript
  Generate a Draw.io diagram XML based on the previously described processes and interconnections. To avoid exhausing all tokens, split up the diagram into artifacts of up to 50 lines. Name them with the part number e.g. "Diagram- Part N". Say "All Done." when reaching the end of the diagram.;
- 
+
 /repeat /stop_if "All Done."
  ok;
 
@@ -60,31 +61,40 @@ _Interesting factoid: most of the code of ClaudePS was generated with Claude Son
 - **Emulated LLM Interaction:**
 
   _Prompt:_
+
 ```
  Generate a Draw.io diagram XML based on the previously described processes and interconnections. To avoid exhausing all tokens, split up the diagram into artifacts of up to 50 lines. Name them with the part number e.g. "Diagram- Part N". Say "All Done." when reaching the end of the diagram.
 ```
-  _LLM Response:_
- ```
+
+_LLM Response:_
+
+```
 Generating "Diagram - Part 1".
 Do you want to continue with part 2?
 ```
 
 _Prompt:_
+
 ```
  ok.
 ```
-  _LLM Response:_
- ```
+
+_LLM Response:_
+
+```
 Generating "Diagram - Part 2".
 Do you want to continue with part 3?
 ```
 
 _Prompt:_
+
 ```
  ok.
 ```
-  _LLM Response:_
- ```
+
+_LLM Response:_
+
+```
 Generating "Diagram - Part 3".
 All done.
 ```
@@ -95,12 +105,15 @@ The script ends because the response contains the string "All done."
 
 | Command         | Abbreviation | Description                                                                     |
 | --------------- | ------------ | ------------------------------------------------------------------------------- |
-| `/repeat`       | `/r`         | Repeat the following prompt                                                     |
-| `/stop_if`      | `/p`         | Stop repeating or stop the script if the LLM response contains a string         |
-| `/stop_if_not`  | `/p`         | Stop repeating or stop the script if the LLM response does not contain a string |
-| `/alias`        | /@+          | Define a new alias.                                                             |
-| `/delete_alias` | /@-          | Delete an existing alias.                                                       |
-| `/list_alias`   | /@?          | List all defined aliases.                                                       |
+| `/repeat`       | `/rp`        | Repeat the following prompt                                                     |
+| `/stop_if`      | -            | Stop repeating or stop the script if the LLM response contains a string         |
+| `/stop_if_not`  | -            | Stop repeating or stop the script if the LLM response does not contain a string |
+| `/alias`        | `@+`         | Define a new alias                                                              |
+| `/delete_alias` | `@-`         | Delete an existing alias                                                        |
+| `/list_alias`   | `@?`         | List all defined aliases                                                        |
+| `/settings`     | `/s`         | View or update settings                                                         |
+| `/root`         | `/r`         | View or set download root path                                                  |
+| `/knowledge`    | `/k`         | Access knowledge base and documentation                                         |
 
 ---
 
@@ -253,12 +266,13 @@ Insufficient data
 
 - **Syntax:**
 
-
   ```promptscript
   /repeat [/max <number>] [ /stop_if <condition> | /stop_if_not <condition> ]
     <statements>
   ```
-or
+
+  or
+
   ```promptscript
   /repeat [/max <number>] [ /stop_if <condition> | /stop_if_not <condition> ]
   (
@@ -308,7 +322,7 @@ or
 Attempt to perform the task
 ```
 
-*LLM Response:
+\*LLM Response:
 
 ```
 The task failed due to network issues.
@@ -497,37 +511,40 @@ LLM Response:
 System has been shut down.
 ```
 
-### Nested  `/repeat` 
+### Nested `/repeat`
 
 The `/repeat` command can be nested in another /repeat command, like any other statement
+
 ```promptscript
 go through the errors one by one and follow the troubleshooting procedures until all errors have been diagnosed, then say "All errors done."
 
 /repeat /stop_if "All errors done."
-(	
+(
 	/repeat /stop_if "No conflict."
 		VERIFY that the proposed solution doesn't conflict with any
-		specifications, and IF there are none, say "No conflict" 
+		specifications, and IF there are none, say "No conflict"
 		OTHERWISE explain the conflict and wait for my instructions;
 	Next error;
 )
 ```
-### Multiple  `/repeat` statements
+
+### Multiple `/repeat` statements
 
 The `/repeat` command can follow another `/repeat` command, like, like any other statement
+
 ```promptscript
 
 Go through the errors one by one and follow the troubleshooting procedures until all errors have been diagnosed but do not propose any solution, then say "All errors done.";
 
 /repeat /stop_if "All errors done."
-(	
+(
 	Next error;
 );
 
 Go through all of the identified root cases and generate fixes that don't conflict with any of the other fixes, one by one, then say "All fixes done";
 
 /repeat /stop_if "All fixes done."
-(	
+(
 	Next error;
 );
 
@@ -536,13 +553,12 @@ list all fixes grouping them by file;
 Go through all of the identified files and generate them as artifacts one by one, then say "All files done";
 
 /repeat /stop_if "All files done."
-(	
+(
 	Next file;
 );
 
 
 ```
-
 
 ---
 
@@ -555,6 +571,7 @@ Go through all of the identified files and generate them as artifacts one by one
 ```promptscript
 /alias @<alias_name> <alias_text>
 ```
+
 or
 
 ```promptscript
@@ -582,14 +599,14 @@ or
 - **Syntax:**
 
 ```promptscript
-/alias_delete @<alias_name>
+/delete_alias @<alias_name>
 ```
+
 or
 
 ```promptscript
-/@- @<alias_name> <alias_text>
+/@- @<alias_name>
 ```
-
 
 - **Description:**
 
@@ -598,7 +615,7 @@ or
 - **Example:**
 
 ```promptscript
-/alias_delete @greet
+/delete_alias @greet
 ```
 
 - **Emulated Action:**
@@ -609,14 +626,14 @@ or
 - **Syntax:**
 
 ```promptscript
-/alias_list
+/list_alias
 ```
+
 or
 
 ```promptscript
-/@? @<alias_name> <alias_text>
+/@?
 ```
-
 
 - **Description:**
 
@@ -625,7 +642,7 @@ or
 - **Example:**
 
 ```promptscript
-/alias_list
+/list_alias
 ```
 
 - **Emulated Output:**
@@ -704,8 +721,25 @@ Best regards, @name
 
 - Note: `@name` within `@signature` is not expanded further.
 
----
+### Development Command Aliases
 
+Here are some useful aliases for development workflows:
+
+```promptscript
+/alias @design LIST one by one the changes necessary for this without proceeding with the changes at this time but propose a solution; VALIDATE that the change does not conflict with requirements or other changes; IF there is a problem, explain it and wait for my approval, OTHERWISE continue with the next change. until all changes have been described, then say "All changes done."
+
+/alias @debug INVESTIGATE the errors one by one. Read the documents in the project knowledge to make sure you don't overlook anything. Here are some errors. Go through each error one by one, perform a root cause analysis and trace through the code to confirm, VALIDATE that the change does not conflict with requirements or other changes; IF there is a problem, explain it and wait for my approval, DO NOT STOP if there is no issue revealed by the validation.  Continue with the next problem until all problems are done, then say "All problems done."
+
+/alias @genenerate LIST the files that need to be modified. FOR EACH file mentioned,  regenerate the file artifact in full including all changes described, no code placeholders, and wait for my approval after each. IF approved, do the next file until all file changes have been described, then say "All done."
+```
+
+These aliases help streamline common development tasks:
+
+- `@design`: Systematically plan and validate changes before implementation
+- `@debug`: Methodically investigate and analyze errors while considering project requirements
+- `@generate`: Generate complete file artifacts with all necessary changes
+
+---
 
 ## 6. Examples
 
@@ -937,34 +971,39 @@ Check for errors;
 
 ## 7. ClaudePS
 
-ClaudePS is a Chrome Extension that implements the PS language for use with the Claude Projects web application. It is available as free Open Source on GitHub: 
+ClaudePS is a Chrome Extension that implements the PS language for use with the Claude Projects web application. It is available as free Open Source on GitHub:
+
 #### ClaudePS Commands and Abbreviations
 
- In addition to the standard PS language, it provides the following Claude-specific commands
+In addition to the standard PS language, it provides the following Claude-specific commands:
 
-| Command           | Abbreviation | Description                                                                         |
-| ----------------- | ------------ | ----------------------------------------------------------------------------------- |
-| `/docs`           | `/d`         | List available documents.                                                           |
-| `/project`        | `/p`         | List conversations in the current project.                                          |
-| `/conversation`   | `/c`         | Export the current conversation.                                                    |
-| `/artifacts`      | `/a`         | Export artifacts as markdown files.                                                 |
-| `/search_project` | `/sp`        | Search projects for specified text. Requires a search term as an argument.          |
-| `/query_project`  | `/qp`        | Execute a prompt against every conversation in the project. Requires a prompt text. |
+| Command           | Abbreviation | Description                                                                        |
+| ----------------- | ------------ | ---------------------------------------------------------------------------------- |
+| `/chat`           | `/ch`        | Export chat without artifacts                                                      |
+| `/artifacts`      | `/a`         | Export artifacts as markdown files                                                 |
+| `/project`        | `/p`         | List conversations in the current project                                          |
+| `/search_project` | `/sp`        | Search projects for specified text. Requires a search term as an argument          |
+| `/query_project`  | `/qp`        | Execute a prompt against every conversation in the project. Requires a prompt text |
+| `/knowledge`      | `/k`         | Access knowledge base and documentation                                            |
+| `/settings`       | `/s`         | View or update settings                                                            |
+| `/root`           | `/r`         | View or set download root path                                                     |
 
 #### Options
 
 - **Notes:**
   - Options are specified with `/` and can be abbreviated.
-  - Options must be compatible with the command (e.g., `/multiple` is valid with `/artifacts`).
+  - Options must be compatible with the command (e.g., `/multiple` is valid with `/artifacts` and `/chat`).
   - For `/search_project` and `/query_project`, a search term or prompt must be provided.
   - Commands and options are **not case-sensitive**.
+  - Settings options include: enable_api, api_key, model, theme, debug_trace, debug_window
+  - Project and content commands are context-sensitive (require being in the appropriate context)
 
 #### Examples
 
 - **Export the current conversation including artifacts:**
 
 ```promptscript
-/c /a
+/ch /a
 ```
 
 - **Emulated Action:**
@@ -1048,4 +1087,3 @@ ClaudePS is a Chrome Extension that implements the PS language for use with the 
     - The prompt is run against each conversation, and the LLM provides summaries for each.
 
 ---
-
