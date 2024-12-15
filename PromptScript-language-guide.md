@@ -1,4 +1,4 @@
-# PromptScript Language Guide v. 1.5
+# PromptScript Language Guide v. 1.0.5
 
 Copyright (c) 2024 Martin Bechard Martin.Bechard@DevConsult.ca
 
