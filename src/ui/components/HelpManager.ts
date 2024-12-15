@@ -11,7 +11,7 @@
 export class HelpManager {
   private readonly outputElement: HTMLElement;
   private static readonly HELP_TEXT = `
-    ClaudeScript v1.5
+    ClaudeScript v1.0.5
     
     1. Simple Prompt:
     Just type your prompt and it will be sent once.
