@@ -148,7 +148,7 @@ describe("ScriptParser - Repeat Command", () => {
     const input = `/repeat Tell me a joke`;
 
     const result = ScriptParser.parse(input);
-    expect(result.statements[0].options?.maxTries).toBe(10);
+    expect(result.statements[0].options?.maxTries).toBe(undefined);
   });
 
   it("should parse repeat with stop_if condition", () => {
@@ -178,7 +178,7 @@ describe("ScriptParser - Stop Conditions", () => {
     const result = ScriptParser.parse(input);
 
     expect(result.statements[0].options).toEqual({
-      maxTries: 10,
+      maxTries: undefined,
       stopConditions: [{ target: "laugh", type: "if" }],
     });
   });
@@ -188,7 +188,7 @@ describe("ScriptParser - Stop Conditions", () => {
     const result = ScriptParser.parse(input);
 
     expect(result.statements[0].options).toEqual({
-      maxTries: 10,
+      maxTries: undefined,
       stopConditions: [{ target: "groan", type: "if_not" }],
     });
   });
@@ -198,7 +198,7 @@ describe("ScriptParser - Stop Conditions", () => {
     const result = ScriptParser.parse(input);
 
     expect(result.statements[0].options).toEqual({
-      maxTries: 10,
+      maxTries: undefined,
       stopConditions: [{ target: "that was funny", type: "if" }],
     });
   });
