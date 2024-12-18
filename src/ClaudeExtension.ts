@@ -89,6 +89,8 @@ export class ClaudeExtension {
         if (!scriptText.trim() || !this.scriptExecutionManager) return;
 
         try {
+          // Add command to history when executing
+          this.scriptRunner?.historyService.addCommand(scriptText);
           await this.scriptExecutionManager.executeScript(scriptText);
         } catch (error) {
           this.logToOutput(

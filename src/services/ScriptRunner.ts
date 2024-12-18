@@ -12,6 +12,7 @@ import {
 } from "../utils/messageUtils";
 import { AnthropicService } from "./AnthropicService";
 import { CommandHistoryService } from "./CommandHistoryService";
+import { sleep as sleepAsync } from "@/utils/sleep";
 
 /**
  * Callback type for logging output from the script runner.
@@ -22,7 +23,7 @@ type LogCallback = (
 ) => void;
 
 const RETRY_INTERVAL_MS = 60 * 1000; // 1 minute
-const DEFAULT_MAX_REPEATS = 2;
+const DEFAULT_MAX_REPEATS = 15;
 const OPERATION_CANCELLED_MESSAGE = "Operation cancelled";
 
 /**
@@ -174,41 +175,30 @@ export class ScriptRunner {
       throw new Error(`Invalid /max value - must be a number: "${maxRepeats}"`);
     }
 
-    let currentTry = 1;
-    while (currentTry <= maxRepeats) {
+    let currentRepeat = 1;
+    while (currentRepeat <= maxRepeats) {
       // Update output for each attempt
-      this.logCallback(`Repeat ${currentTry} of ${maxRepeats}...\n`);
-
-      try {
-        const response = await this.executeStoppablePrompt(
-          prompt,
-          stopConditions
-        );
-
-        if (response === "not_applicable" || response === "stopped") {
-          return response;
-        }
-
-        // If this was the last try and conditions weren't met
-        if (currentTry === maxRepeats) {
-          this.logCallback(
-            "\nMax attempts reached without meeting stop condition"
-          );
-          return "not_stopped";
-        }
-
-        currentTry++;
-      } catch (error) {
-        if (
-          error instanceof Error &&
-          error.message === OPERATION_CANCELLED_MESSAGE
-        ) {
-          throw error;
-        }
-        console.error(`Attempt ${currentTry} failed:`, error);
-        // Continue with next attempt despite error
-        currentTry++;
+      if (maxRepeats > 1) {
+        this.logCallback(`Repeat ${currentRepeat} of ${maxRepeats}...\n`);
       }
+      const response = await this.executeStoppablePrompt(
+        prompt,
+        stopConditions
+      );
+
+      if (response === "not_applicable" || response === "stopped") {
+        return response;
+      }
+
+      // If this was the last try and conditions weren't met
+      if (currentRepeat === maxRepeats) {
+        this.logCallback(
+          "\nMax attempts reached without meeting stop condition"
+        );
+        return "not_stopped";
+      }
+
+      currentRepeat++;
     }
     console.log("failed to match");
     return "failed";
@@ -235,9 +225,6 @@ export class ScriptRunner {
   }
 
   public async executePrompt(prompt: string) {
-    // Add command to history when executing
-    this.historyService.addCommand(prompt);
-
     let response = "";
     try {
       // First try using the text input and streaming method ONCE
@@ -315,8 +302,41 @@ export class ScriptRunner {
   private async executePromptWithStreaming(prompt: string): Promise<string> {
     const targetDiv = await this.findInputElement();
     await this.insertPrompt(prompt);
+    const startCount = this.countMessages();
+
     await this.simulateEnterKey(targetDiv);
+    if (!(await this.waitForStreamingToStart(startCount))) {
+      throw new Error("Failed to detect streaming");
+    }
     return await this.checkStreaming();
+  }
+
+  private countMessages() {
+    const streamedDivs = document.body.querySelectorAll(
+      'div[data-is-streaming="false"]'
+    );
+    const streamingDivs = document.body.querySelectorAll(
+      'div[data-is-streaming="true"]'
+    );
+
+    const total = streamedDivs.length + streamingDivs.length;
+
+    return total;
+  }
+
+  private async waitForStreamingToStart(startCount: number) {
+    const MAX_STREAMING_WAIT = 50;
+
+    for (let iteration = 0; iteration < MAX_STREAMING_WAIT; iteration++) {
+      const newCount = this.countMessages();
+      if (newCount > startCount) {
+        return true;
+      }
+      checkMessageLimitForRetry();
+      await sleepAsync(1000);
+    }
+
+    return false;
   }
 
   /**
@@ -324,49 +344,42 @@ export class ScriptRunner {
    * @returns The final response text
    * @throws {MessageLimitError} if message limit is reached
    * @throws Error if monitoring times out
+   *
+   * IMPORTANT: Call this function once streaming is started and possibly completed
    */
   private async checkStreaming(): Promise<string> {
     const startTime = Date.now();
-    let streamingStarted = false;
 
     try {
       while (this.isRunning && Date.now() - startTime < this.MAX_WAIT_TIME_MS) {
-        // Check for message limit before checking streaming state
-        checkMessageLimitForRetry(document.body);
+        // Check if we're out of  messages for now
+        checkMessageLimitForRetry();
 
-        const streamingDiv = document.querySelector(
-          'div[data-is-streaming="true"]'
-        );
-        if (!streamingDiv) {
-          // Check for message limit again before getting final response
-          checkMessageLimitForRetry(document.body);
-
-          if (streamingStarted) {
-            // Get the last message div which contains the final response
-            const nodes = document.querySelectorAll(
-              'div[data-is-streaming="false"]'
-            );
-
-            // NodeList is similar to an array. To get the last node:
-            const messageDiv = nodes[nodes.length - 1];
-
-            return messageDiv?.textContent || "";
-          }
-        } else {
-          streamingStarted = true;
+        // Look for cancellation
+        if (!this.isRunning) {
+          throw new Error(OPERATION_CANCELLED_MESSAGE);
         }
 
-        // Wait before next check
-        await new Promise((resolve) =>
-          setTimeout(resolve, this.CHECK_INTERVAL)
+        let streamingDiv = document.querySelector(
+          'div[data-is-streaming="true"]'
         );
 
-        // Check for message limit after waiting
-        checkMessageLimitForRetry(document.body);
-      }
+        if (streamingDiv) {
+          // Wait before next check
+          await sleepAsync(this.CHECK_INTERVAL);
 
-      if (!this.isRunning) {
-        throw new Error(OPERATION_CANCELLED_MESSAGE);
+          continue;
+        }
+
+        // Get the last message div which contains the final response
+        const nodes = document.querySelectorAll(
+          'div[data-is-streaming="false"]'
+        );
+
+        // NodeList is similar to an array. To get the last node:
+        const messageDiv = nodes[nodes.length - 1];
+
+        return messageDiv?.textContent || "";
       }
 
       throw new Error("Response timeout after 2 minutes");

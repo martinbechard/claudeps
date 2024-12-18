@@ -65,9 +65,7 @@ describe("checkMessageLimitForRetry", () => {
       </div>
     `;
 
-    expect(() => checkMessageLimitForRetry(document.body)).toThrow(
-      MessageLimitError
-    );
+    expect(() => checkMessageLimitForRetry()).toThrow(MessageLimitError);
   });
 
   it("should not throw when error div is hidden", () => {
@@ -79,7 +77,7 @@ describe("checkMessageLimitForRetry", () => {
 
     (window.getComputedStyle as jest.Mock).mockReturnValue({ display: "none" });
 
-    expect(() => checkMessageLimitForRetry(document.body)).not.toThrow();
+    expect(() => checkMessageLimitForRetry()).not.toThrow();
   });
 
   it("should not throw when error div is not present", () => {
@@ -89,7 +87,7 @@ describe("checkMessageLimitForRetry", () => {
       </div>
     `;
 
-    expect(() => checkMessageLimitForRetry(document.body)).not.toThrow();
+    expect(() => checkMessageLimitForRetry()).not.toThrow();
   });
 
   it("should not throw when message limit text is not present", () => {
@@ -99,6 +97,6 @@ describe("checkMessageLimitForRetry", () => {
       </div>
     `;
 
-    expect(() => checkMessageLimitForRetry(document.body)).not.toThrow();
+    expect(() => checkMessageLimitForRetry()).not.toThrow();
   });
 });

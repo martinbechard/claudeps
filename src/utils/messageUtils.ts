@@ -30,9 +30,10 @@ export const hasMessageLimitReached = (element: Element): boolean => {
  * Used specifically for handling retry scenarios
  * @throws {MessageLimitError} when message limit is reached and error div is displayed
  */
-export const checkMessageLimitForRetry = (element: Element): void => {
+export const checkMessageLimitForRetry = (): void => {
+  const bodyElement: Element = document.body;
   // Find the outer div with error class
-  const errorDiv = element.querySelector(
+  const errorDiv = bodyElement.querySelector(
     "fieldset div.text-danger-000 div.text-sm"
   );
   if (!errorDiv) return;
