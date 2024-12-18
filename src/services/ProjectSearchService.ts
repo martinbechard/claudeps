@@ -44,12 +44,13 @@ export class ProjectSearchService {
 
     const messages = [
       {
-        role: "user" as const,
+        role: "human" as const,
         content: prompt,
       },
     ];
 
-    const result = await AnthropicService.complete(messages, {
+    const result = await AnthropicService.complete({
+      messages,
       temperature: 0.7,
       maxTokens: 2000,
       signal,

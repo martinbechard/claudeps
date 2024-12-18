@@ -11,6 +11,7 @@ import { COMMAND_MAP } from "../utils/commands/CommandMap";
 import type { ScriptStatement } from "../types";
 import type { StatusManager } from "../ui/components/StatusManager";
 import { ProjectSearchService } from "./ProjectSearchService";
+import { ScriptRunner } from "./ScriptRunner";
 
 type LogFunction = (
   message: string,
@@ -47,7 +48,10 @@ export class CommandExecutor {
   /**
    * Executes a command using its command object's execute method
    */
-  public async executeCommand(script: ScriptStatement): Promise<void> {
+  public async executeCommand(
+    script: ScriptStatement,
+    scriptRunner?: ScriptRunner
+  ): Promise<void> {
     if (!script.command) {
       throw new Error("No command specified");
     }
@@ -62,6 +66,7 @@ export class CommandExecutor {
       outputElement: this.outputElement,
       handleLog: this.handleLog,
       setStatus: this.statusManager.setStatus.bind(this.statusManager),
+      scriptRunner,
     });
 
     if (!success) {

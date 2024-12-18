@@ -17,6 +17,7 @@ import {
   mockSetStatus,
   resetMocks,
 } from "../../__mocks__/commandTestUtils";
+import { ScriptRunner } from "@/services/ScriptRunner";
 
 jest.mock("../../../src/services/SettingsService");
 

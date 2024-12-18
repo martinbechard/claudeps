@@ -18,22 +18,30 @@ import {
 } from "./commands/CommandMap";
 import { OptionType } from "./commands/BaseCommandInfo";
 import { splitTextWithQuotes } from "./splitText";
+import { AliasService } from "@/services/AliasService";
 
 export class ScriptParser {
   private static readonly COMMAND_PREFIX = "/";
 
   /**
    * Parses text into a Script object
+   * @throws Error if parsing fails
    */
   public static parse(text: string): Script {
-    const statements = this.parseStatements(text);
-    return { statements };
+    try {
+      const statements = this.parseStatements(text);
+      return { statements };
+    } catch (error) {
+      console.error("Script parsing failed:", error);
+      throw error;
+    }
   }
 
   /**
    * Splits text into statements while preserving quoted strings
    */
-  private static parseStatements(text: string): ScriptStatement[] {
+  private static parseStatements(textParam: string): ScriptStatement[] {
+    const text = AliasService.processText(textParam);
     const statements: ScriptStatement[] = [];
     let current = "";
     let inQuotes = false;
@@ -218,7 +226,7 @@ export class ScriptParser {
               i--;
               break;
             }
-            arg = (arg ? " " + arg : "") + parts[i];
+            arg = (arg ? arg + " " : "") + parts[i];
             i++;
           }
 

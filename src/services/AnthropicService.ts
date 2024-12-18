@@ -10,9 +10,10 @@
 
 import { SettingsService } from "./SettingsService";
 import { requestCompletion } from "../utils/requestCompletion";
+import { MessageLimitError } from "@/utils/messageUtils";
 
 export interface Message {
-  role: "user" | "assistant";
+  role: "human" | "assistant";
   content: string;
 }
 
@@ -34,11 +35,15 @@ export interface AnthropicResponse {
 }
 
 export interface CompletionOptions {
+  prompt?: string;
+  messages?: Message[];
   maxTokens?: number;
   temperature?: number;
   topP?: number;
   topK?: number;
   signal?: AbortSignal;
+  forceNoApiKey?: boolean;
+  continueConversation?: boolean;
 }
 
 export interface CompletionResult {
@@ -53,8 +58,7 @@ export class AnthropicService {
    * Makes a request to the Anthropic API through the background script
    */
   public static async complete(
-    messages: Message[],
-    options: CompletionOptions = {}
+    options: CompletionOptions
   ): Promise<CompletionResult> {
     console.log("[AnthropicService] Starting API request");
     let debugTrace = false;
@@ -65,22 +69,37 @@ export class AnthropicService {
         "debugTraceRequests"
       )) as boolean;
 
-      if (!enableApi) {
+      if (!enableApi || options.forceNoApiKey) {
         console.log(
-          "[AnthropicService] Anthropic API is disabled, using claude.ai"
+          "[AnthropicService] Using claude.ai directly",
+          options.forceNoApiKey ? "(forced)" : "(API disabled)"
         );
         try {
           if (debugTrace) {
             console.log("[Debug] Claude.ai Request:", {
-              messages,
-              messageSize: JSON.stringify(messages).length,
+              messages: options.messages,
+              messageSize: JSON.stringify(options.messages || options.prompt)
+                .length,
             });
           }
 
           const response = await requestCompletion({
-            messages,
+            messages: options.messages,
+            prompt: options.prompt,
             stream: false,
             renderingMode: "messages",
+            continueConversation: options.continueConversation,
+          }).catch((error) => {
+            // Check for 429 status and throw MessageLimitError
+            if (error instanceof Error) {
+              if (
+                error.message.includes("429") ||
+                error.message.includes("Message limit reached")
+              ) {
+                throw new MessageLimitError();
+              }
+            }
+            throw error;
           });
 
           if (debugTrace) {
@@ -98,6 +117,10 @@ export class AnthropicService {
           console.error("[AnthropicService] claude.ai request failed:", error);
           if (debugTrace) {
             console.log("[Debug] Claude.ai Error:", error);
+          }
+          // Re-throw MessageLimitError
+          if (error instanceof MessageLimitError) {
+            throw error;
           }
           return {
             success: false,
@@ -132,7 +155,8 @@ export class AnthropicService {
 
       const requestBody = {
         model,
-        messages,
+        messages: options.messages,
+        prompt: options.prompt,
         max_tokens: options.maxTokens || 1024,
         temperature: options.temperature,
         top_p: options.topP,
@@ -142,9 +166,10 @@ export class AnthropicService {
       if (debugTrace) {
         console.log("[Debug] API Request:", {
           model,
-          messageCount: messages.length,
+          messageCount: options.messages?.length || 1,
           requestSize: JSON.stringify(requestBody).length,
-          messages: messages,
+          messages: options.messages,
+          prompt: options.prompt,
         });
       }
 
@@ -247,6 +272,10 @@ export class AnthropicService {
       console.error("[AnthropicService] Unexpected error:", error);
       if (debugTrace) {
         console.log("[Debug] Unexpected Error:", error);
+      }
+      // Re-throw MessageLimitError
+      if (error instanceof MessageLimitError) {
+        throw error;
       }
       return {
         success: false,

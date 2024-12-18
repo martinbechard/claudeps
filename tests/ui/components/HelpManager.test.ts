@@ -18,7 +18,7 @@ describe("HelpManager", () => {
     helpManager.show();
 
     // Verify help text contains key sections
-    expect(outputElement.textContent).toContain("ClaudeScript v1.0.5");
+    expect(outputElement.textContent).toContain("ClaudeScript v1.0.6");
     expect(outputElement.textContent).toContain("Content Commands:");
     expect(outputElement.textContent).toContain("Project Commands:");
     expect(outputElement.textContent).toContain("Knowledge & Settings:");

@@ -12,14 +12,14 @@ import { MemoryStorage } from "../../src/types/storage";
 describe("AliasService", () => {
   beforeEach(async () => {
     // Initialize with fresh MemoryStorage for each test
-    AliasService.initialize(new MemoryStorage());
+    await AliasService.initialize(new MemoryStorage());
     await AliasService.clearAllAliases();
   });
 
   describe("setAlias", () => {
     it("should store a valid alias", async () => {
       await AliasService.setAlias("test", "Hello World");
-      const result = await AliasService.getAlias("test");
+      const result = AliasService.getAlias("test");
       expect(result).toBe("Hello World");
     });
 
@@ -35,7 +35,7 @@ describe("AliasService", () => {
       await AliasService.setAlias("test", "Hello World");
       const deleted = await AliasService.deleteAlias("test");
       expect(deleted).toBe(true);
-      const result = await AliasService.getAlias("test");
+      const result = AliasService.getAlias("test");
       expect(result).toBeUndefined();
     });
 
@@ -52,22 +52,22 @@ describe("AliasService", () => {
     });
 
     it("should replace simple aliases", async () => {
-      const result = await AliasService.processText("@hello");
+      const result = AliasService.processText("@hello");
       expect(result).toBe("Hello World");
     });
 
     it("should handle nested aliases", async () => {
-      const result = await AliasService.processText("@nested");
+      const result = AliasService.processText("@nested");
       expect(result).toBe("Hello World there");
     });
 
     it("should handle multiple aliases in text", async () => {
-      const result = await AliasService.processText("@hello @hello");
+      const result = AliasService.processText("@hello @hello");
       expect(result).toBe("Hello World Hello World");
     });
 
     it("should not replace partial matches", async () => {
-      const result = await AliasService.processText("email@hello.com");
+      const result = AliasService.processText("email@hello.com");
       expect(result).toBe("email@hello.com");
     });
   });

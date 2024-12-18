@@ -15,13 +15,14 @@ import { EventStreamParser } from "./EventStreamParser";
 import { createConversation } from "./createConversation";
 import { deleteConversation } from "./deleteConversation";
 import type { CompletionResponse } from "../types";
+import { MessageLimitError } from "./messageUtils";
 
 const API_URL = "https://api.claude.ai/api/organizations";
 const STREAMING_API_URL = "https://claude.ai/api/organizations";
 const DEFAULT_TIMEZONE = "America/Toronto";
 
 interface Message {
-  role: "user" | "assistant";
+  role: "human" | "assistant";
   content: string;
 }
 
@@ -63,8 +64,18 @@ async function makeNonStreamingRequest(
 
   if (!response.ok) {
     const errorData = await response.json().catch(() => null);
+    if (response.status === 429) {
+      throw new MessageLimitError();
+    }
     if (errorData?.type === "error" && errorData?.error?.message) {
-      throw new Error(`LLM Error: ${errorData.error.message}`);
+      const errorMessage = errorData.error.message;
+      if (
+        errorMessage.includes("rate limit") ||
+        errorMessage.includes("message limit")
+      ) {
+        throw new MessageLimitError();
+      }
+      throw new Error(`LLM Error: ${errorMessage}`);
     }
     throw new Error(`HTTP error! status: ${response.status}`);
   }
@@ -202,7 +213,9 @@ export async function requestCompletion(
         params.messages
           .map(
             (msg) =>
-              `${msg.role === "user" ? "Human" : "Assistant"}: ${msg.content}`
+              `{${msg.role === "human" ? "Human" : "Assistant"}: ${
+                msg.content
+              }}`
           )
           .join("\n\n") + "\n\nAssistant:";
     }
@@ -240,8 +253,18 @@ export async function requestCompletion(
       console.error("Response not OK:", response.status, response.statusText);
       const errorData = await response.json().catch(() => null);
       console.error("Error data:", errorData);
+      if (response.status === 429) {
+        throw new MessageLimitError();
+      }
       if (errorData?.type === "error" && errorData?.error?.message) {
-        throw new Error(`LLM Error: ${errorData.error.message}`);
+        const errorMessage = errorData.error.message;
+        if (
+          errorMessage.includes("rate limit") ||
+          errorMessage.includes("message limit")
+        ) {
+          throw new MessageLimitError();
+        }
+        throw new Error(`LLM Error: ${errorMessage}`);
       }
       throw new Error(`HTTP error! status: ${response.status}`);
     }
@@ -279,6 +302,9 @@ export async function requestCompletion(
     };
   } catch (error) {
     console.error("Request completion error:", error);
+    if (error instanceof MessageLimitError) {
+      throw error; // Re-throw MessageLimitError
+    }
     throw error;
   }
 }

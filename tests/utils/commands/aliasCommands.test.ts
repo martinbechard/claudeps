@@ -25,10 +25,10 @@ jest.mock("../../../src/services/AliasService");
 describe("ListAliasCommand", () => {
   let command: ListAliasCommand;
 
-  beforeEach(() => {
+  beforeEach(async () => {
     command = new ListAliasCommand();
     resetMocks();
-    AliasService.initialize(new MemoryStorage());
+    await AliasService.initialize(new MemoryStorage());
   });
 
   describe("parse", () => {
@@ -71,7 +71,7 @@ describe("ListAliasCommand", () => {
 
   describe("execute", () => {
     it("should handle list command with no aliases", async () => {
-      jest.spyOn(AliasService, "getAliasList").mockResolvedValue([]);
+      jest.spyOn(AliasService, "getAliasList").mockReturnValue([]);
 
       const statement = new ScriptStatement({
         isCommand: true,
@@ -97,7 +97,7 @@ describe("ListAliasCommand", () => {
 
     it("should handle list command with aliases", async () => {
       const aliases = ["@test = /test command", "@help = /help"];
-      jest.spyOn(AliasService, "getAliasList").mockResolvedValue(aliases);
+      jest.spyOn(AliasService, "getAliasList").mockReturnValue(aliases);
 
       const statement = new ScriptStatement({
         isCommand: true,
@@ -128,10 +128,10 @@ describe("ListAliasCommand", () => {
 describe("SetAliasCommand", () => {
   let command: SetAliasCommand;
 
-  beforeEach(() => {
+  beforeEach(async () => {
     command = new SetAliasCommand();
     resetMocks();
-    AliasService.initialize(new MemoryStorage());
+    await AliasService.initialize(new MemoryStorage());
   });
 
   describe("parse", () => {
@@ -207,10 +207,10 @@ describe("SetAliasCommand", () => {
 describe("DeleteAliasCommand", () => {
   let command: DeleteAliasCommand;
 
-  beforeEach(() => {
+  beforeEach(async () => {
     command = new DeleteAliasCommand();
     resetMocks();
-    AliasService.initialize(new MemoryStorage());
+    await AliasService.initialize(new MemoryStorage());
   });
 
   describe("parse", () => {

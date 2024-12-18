@@ -51,7 +51,7 @@ abstract class AliasCommandBase extends BaseCommandInfo {
           break;
 
         case "list_alias":
-          const aliases = await AliasService.getAliasList();
+          const aliases = AliasService.getAliasList(); // Removed await since getAliasList is synchronous
           if (aliases.length === 0) {
             params.outputElement.textContent = "No aliases defined";
             params.handleLog("No aliases defined", "info");

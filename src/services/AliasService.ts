@@ -24,7 +24,7 @@ export class AliasService {
   /**
    * Initialize the storage system
    */
-  public static initialize(storage?: IStorage): void {
+  public static async initialize(storage?: IStorage) {
     if (storage) {
       this.storage = storage;
     } else {
@@ -35,6 +35,8 @@ export class AliasService {
         } else {
           this.storage = new MemoryStorage();
         }
+
+        await this.loadAliases();
       } catch (error) {
         this.storage = new MemoryStorage();
       }
@@ -44,20 +46,26 @@ export class AliasService {
   /**
    * Ensures storage is initialized
    */
-  private static ensureStorage(): void {
+  private static async ensureStorage() {
     if (!this.storage) {
-      this.initialize();
+      await this.initialize();
     }
   }
+
+  private static aliases: AliasData = {};
 
   /**
    * Retrieves all stored aliases
    */
-  public static async getAliases(): Promise<AliasData> {
-    this.ensureStorage();
+  public static async loadAliases(): Promise<AliasData> {
+    if (!this.storage) {
+      throw new Error("Can't load aliases - storage not initialized");
+    }
+
     try {
       const data = await this.storage.getItem(this.STORAGE_KEY);
-      return data ? JSON.parse(data) : {};
+      AliasService.aliases = (data ? JSON.parse(data) : {}) as AliasData;
+      return AliasService.aliases;
     } catch (error) {
       console.error("Error retrieving aliases:", error);
       return {};
@@ -65,11 +73,17 @@ export class AliasService {
   }
 
   /**
+   * Retrieves all stored aliases
+   */
+  public static getAliases(): AliasData {
+    return AliasService.aliases;
+  }
+
+  /**
    * Gets a specific alias by name
    */
-  public static async getAlias(name: string): Promise<string | undefined> {
-    this.ensureStorage();
-    const aliases = await this.getAliases();
+  public static getAlias(name: string): string | undefined {
+    const aliases = this.getAliases();
     return aliases[name];
   }
 
@@ -77,7 +91,7 @@ export class AliasService {
    * Creates or updates an alias
    */
   public static async setAlias(name: string, text: string): Promise<void> {
-    this.ensureStorage();
+    await this.ensureStorage();
     if (!this.isValidAliasName(name)) {
       throw new Error(
         "Invalid alias name. Use only letters, numbers, and underscores."
@@ -85,7 +99,7 @@ export class AliasService {
     }
 
     try {
-      const aliases = await this.getAliases();
+      const aliases = this.getAliases();
       aliases[name] = text;
       await this.storage.setItem(this.STORAGE_KEY, JSON.stringify(aliases));
     } catch (error) {
@@ -101,7 +115,7 @@ export class AliasService {
    * Deletes an alias
    */
   public static async deleteAlias(name: string): Promise<boolean> {
-    this.ensureStorage();
+    await this.ensureStorage();
     const aliases = await this.getAliases();
     if (!(name in aliases)) {
       return false;
@@ -122,9 +136,8 @@ export class AliasService {
   /**
    * Processes text to replace all aliases with their values
    */
-  public static async processText(text: string): Promise<string> {
-    this.ensureStorage();
-    const aliases = await this.getAliases();
+  public static processText(text: string): string {
+    const aliases = this.getAliases();
     let processedText = text;
 
     // Sort aliases by length (longest first) to handle nested aliases correctly
@@ -144,17 +157,16 @@ export class AliasService {
   /**
    * Clears all aliases from storage
    */
-  public static async clearAllAliases(): Promise<void> {
-    this.ensureStorage();
+  public static async clearAllAliases() {
+    await this.ensureStorage();
     await this.storage.removeItem(this.STORAGE_KEY);
   }
 
   /**
    * Gets a formatted list of all aliases
    */
-  public static async getAliasList(): Promise<string[]> {
-    this.ensureStorage();
-    const aliases = await this.getAliases();
+  public static getAliasList(): string[] {
+    const aliases = this.getAliases();
     return Object.entries(aliases).map(([name, value]) => `@${name}: ${value}`);
   }
 }

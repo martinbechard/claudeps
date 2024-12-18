@@ -4,6 +4,7 @@
  * File: src/utils/commands/BaseCommandInfo.ts
  */
 
+import { ScriptRunner } from "@/services/ScriptRunner";
 import {
   CommandOptions,
   ParsedCommandLine,
@@ -44,6 +45,7 @@ export type ExecuteParams = {
   outputElement: HTMLElement;
   handleLog: LogFunction;
   setStatus: StatusManager["setStatus"];
+  scriptRunner?: ScriptRunner;
 };
 
 /**
@@ -91,21 +93,6 @@ export class BaseCommandInfo {
       mutableStatement.options = {};
     }
     return mutableStatement.options;
-  }
-
-  /**
-   * Helper method to add a stop condition to a statement
-   */
-  protected addStopCondition(
-    statement: ScriptStatement,
-    target: string,
-    type: "if" | "if_not"
-  ) {
-    const options = this.getOptions(statement);
-    if (!options.stopConditions) {
-      options.stopConditions = [];
-    }
-    options.stopConditions.push({ target, type });
   }
 
   /**

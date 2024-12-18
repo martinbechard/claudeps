@@ -11,6 +11,8 @@ import { SettingsService } from "../../services/SettingsService";
 import { HelpManager } from "./HelpManager";
 import { UIStateManager } from "./UIStateManager";
 import { simpleCommands } from "../../utils/commands/simpleCommands";
+import { CommandHistoryService } from "../../services/CommandHistoryService";
+import { DraggableManager } from "./DraggableManager";
 
 /**
  * Manages the floating window interface for the extension.
@@ -22,9 +24,18 @@ export class FloatingWindow {
   private helpManager: HelpManager | null = null;
   private domObserver: MutationObserver | null = null;
   private lastPathname: string = window.location.pathname;
+  private historyService: CommandHistoryService | null = null;
+  private draggableManager: DraggableManager | null = null;
 
   private isOnClaudeSite(): boolean {
     return window.location.hostname.includes("claude.ai");
+  }
+
+  /**
+   * Sets the command history service
+   */
+  public setHistoryService(service: CommandHistoryService): void {
+    this.historyService = service;
   }
 
   private async generateSimpleButtons(): Promise<string> {
@@ -81,6 +92,12 @@ export class FloatingWindow {
       <div class="input-container">
         <div class="script-mode" style="display: none;">
           <div class="script-container">
+            <div style="position: relative;">
+              <div style="position: absolute; right: 35px; top: 5px; display: flex; gap: 5px; z-index: 100;">
+                <button id="prevCommand" class="btn btn-neutral btn-sm" title="Previous command">↑</button>
+                <button id="nextCommand" class="btn btn-neutral btn-sm" title="Next command">↓</button>
+                <button id="clearScript" class="btn btn-neutral btn-sm" title="Clear script">✕</button>
+              </div>
             <textarea id="scriptText" placeholder="Simple prompt:
 Type your prompt here
 
@@ -93,6 +110,7 @@ Your prompt here
 
 /repeat MAX 3 /stop_if_not failure
 Your prompt here"></textarea>
+            </div>
             <div class="resize-handle"></div>
           </div>
           <button id="runScript">Run Script</button>
@@ -143,6 +161,12 @@ Your prompt here"></textarea>
 
     // Initialize help manager
     this.helpManager = new HelpManager(this.outputDiv);
+
+    // Set up draggable behavior
+    const statusBar = this.element.querySelector(".status") as HTMLElement;
+    if (statusBar) {
+      this.draggableManager = new DraggableManager(this.element, statusBar);
+    }
 
     // Set up resize functionality
     this.setupResizeHandles();
@@ -266,6 +290,173 @@ Your prompt here"></textarea>
   }
 
   /**
+   * Binds event listeners to UI elements
+   */
+  private bindEventListeners(elements: FloatingWindowElements): void {
+    this.bindCommandButtonListeners();
+
+    // Add Enter key handler for script text area
+    elements.scriptText.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" && !e.shiftKey) {
+        e.preventDefault();
+        elements.runButton.click();
+      }
+    });
+
+    // Add history navigation handlers
+    const prevCommand = this.element?.querySelector(
+      "#prevCommand"
+    ) as HTMLButtonElement;
+    const nextCommand = this.element?.querySelector(
+      "#nextCommand"
+    ) as HTMLButtonElement;
+    const clearScript = this.element?.querySelector(
+      "#clearScript"
+    ) as HTMLButtonElement;
+    const scriptText = elements.scriptText as HTMLTextAreaElement;
+
+    if (
+      prevCommand &&
+      nextCommand &&
+      clearScript &&
+      scriptText &&
+      this.historyService
+    ) {
+      prevCommand.addEventListener("click", () => {
+        const prevCmd = this.historyService?.getPreviousCommand();
+        if (prevCmd) {
+          scriptText.value = prevCmd;
+          scriptText.focus();
+        }
+      });
+
+      nextCommand.addEventListener("click", () => {
+        const nextCmd = this.historyService?.getNextCommand();
+        if (nextCmd) {
+          scriptText.value = nextCmd;
+          scriptText.focus();
+        }
+      });
+
+      clearScript.addEventListener("click", () => {
+        scriptText.value = "";
+        scriptText.focus();
+      });
+
+      // Add keyboard shortcuts
+      scriptText.addEventListener("keydown", (e) => {
+        if (e.key === "ArrowUp" && e.ctrlKey) {
+          e.preventDefault();
+          const prevCmd = this.historyService?.getPreviousCommand();
+          if (prevCmd) {
+            scriptText.value = prevCmd;
+          }
+        } else if (e.key === "ArrowDown" && e.ctrlKey) {
+          e.preventDefault();
+          const nextCmd = this.historyService?.getNextCommand();
+          if (nextCmd) {
+            scriptText.value = nextCmd;
+          }
+        }
+      });
+    }
+
+    // Project search handlers
+    const searchContainer = elements.window.querySelector(
+      ".project-search-container"
+    ) as HTMLElement;
+    const searchInput = searchContainer?.querySelector(
+      ".project-search-input"
+    ) as HTMLInputElement;
+    const searchGlyph = searchContainer?.querySelector(
+      ".project-search-glyph"
+    ) as HTMLButtonElement;
+    const searchCancel = searchContainer?.querySelector(
+      ".project-search-cancel"
+    ) as HTMLButtonElement;
+
+    const executeProjectSearch = () => {
+      if (searchInput && searchInput.value.trim()) {
+        // Execute search in simple mode
+        elements.scriptText.value = `/search_project ${searchInput.value.trim()}`;
+        elements.runButton.click();
+
+        // Show cancel button
+        if (searchCancel) {
+          searchCancel.style.display = "block";
+          searchCancel.textContent = "Cancel";
+        }
+      }
+    };
+
+    const cancelSearch = () => {
+      // Hide search UI and cancel button
+      if (searchContainer) {
+        searchContainer.style.display = "none";
+      }
+      if (searchInput) {
+        searchInput.value = "";
+      }
+      if (searchCancel) {
+        searchCancel.style.display = "none";
+      }
+
+      // Click the run button to trigger cancel in working state
+      elements.runButton.click();
+    };
+
+    if (searchInput) {
+      searchInput.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") {
+          e.preventDefault();
+          executeProjectSearch();
+        } else if (e.key === "Escape") {
+          cancelSearch();
+        }
+      });
+    }
+
+    if (searchGlyph) {
+      searchGlyph.addEventListener("click", executeProjectSearch);
+    }
+
+    if (searchCancel) {
+      searchCancel.addEventListener("click", cancelSearch);
+    }
+
+    // Mode toggle handler
+    elements.modeToggleButton.addEventListener("click", () => {
+      const isScriptMode =
+        elements.scriptModeContainer.style.display !== "none";
+      elements.scriptModeContainer.style.display = isScriptMode
+        ? "none"
+        : "block";
+      elements.simpleModeContainer.style.display = isScriptMode
+        ? "block"
+        : "none";
+      elements.modeToggleButton.title = isScriptMode
+        ? "Switch to Script Mode"
+        : "Switch to Command Mode";
+      elements.modeToggleButton.textContent = isScriptMode ? "📝" : "🔘";
+    });
+
+    elements.runButton.addEventListener("click", () =>
+      this.uiStateManager?.updateButtonStates(true)
+    );
+    elements.helpButton.addEventListener("click", () =>
+      this.helpManager?.show()
+    );
+
+    elements.minimizeButton.addEventListener("click", () =>
+      this.uiStateManager?.handleMinimizeClick()
+    );
+
+    elements.collapseButton.addEventListener("click", () =>
+      this.uiStateManager?.toggleCollapse()
+    );
+  }
+
+  /**
    * Binds event listeners to command buttons
    */
   private bindCommandButtonListeners(): void {
@@ -370,115 +561,6 @@ Your prompt here"></textarea>
   }
 
   /**
-   * Binds event listeners to UI elements
-   */
-  private bindEventListeners(elements: FloatingWindowElements): void {
-    this.bindCommandButtonListeners();
-
-    // Add Enter key handler for script text area
-    elements.scriptText.addEventListener("keydown", (e) => {
-      if (e.key === "Enter" && !e.shiftKey) {
-        e.preventDefault();
-        elements.runButton.click();
-      }
-    });
-
-    // Project search handlers
-    const searchContainer = elements.window.querySelector(
-      ".project-search-container"
-    ) as HTMLElement;
-    const searchInput = searchContainer?.querySelector(
-      ".project-search-input"
-    ) as HTMLInputElement;
-    const searchGlyph = searchContainer?.querySelector(
-      ".project-search-glyph"
-    ) as HTMLButtonElement;
-    const searchCancel = searchContainer?.querySelector(
-      ".project-search-cancel"
-    ) as HTMLButtonElement;
-
-    const executeProjectSearch = () => {
-      if (searchInput && searchInput.value.trim()) {
-        // Execute search in simple mode
-        elements.scriptText.value = `/search_project ${searchInput.value.trim()}`;
-        elements.runButton.click();
-
-        // Show cancel button
-        if (searchCancel) {
-          searchCancel.style.display = "block";
-          searchCancel.textContent = "Cancel";
-        }
-      }
-    };
-
-    const cancelSearch = () => {
-      // Hide search UI and cancel button
-      if (searchContainer) {
-        searchContainer.style.display = "none";
-      }
-      if (searchInput) {
-        searchInput.value = "";
-      }
-      if (searchCancel) {
-        searchCancel.style.display = "none";
-      }
-
-      // Click the run button to trigger cancel in working state
-      elements.runButton.click();
-    };
-
-    if (searchInput) {
-      searchInput.addEventListener("keydown", (e) => {
-        if (e.key === "Enter") {
-          e.preventDefault();
-          executeProjectSearch();
-        } else if (e.key === "Escape") {
-          cancelSearch();
-        }
-      });
-    }
-
-    if (searchGlyph) {
-      searchGlyph.addEventListener("click", executeProjectSearch);
-    }
-
-    if (searchCancel) {
-      searchCancel.addEventListener("click", cancelSearch);
-    }
-
-    // Mode toggle handler
-    elements.modeToggleButton.addEventListener("click", () => {
-      const isScriptMode =
-        elements.scriptModeContainer.style.display !== "none";
-      elements.scriptModeContainer.style.display = isScriptMode
-        ? "none"
-        : "block";
-      elements.simpleModeContainer.style.display = isScriptMode
-        ? "block"
-        : "none";
-      elements.modeToggleButton.title = isScriptMode
-        ? "Switch to Script Mode"
-        : "Switch to Command Mode";
-      elements.modeToggleButton.textContent = isScriptMode ? "📝" : "🔘";
-    });
-
-    elements.runButton.addEventListener("click", () =>
-      this.uiStateManager?.updateButtonStates(true)
-    );
-    elements.helpButton.addEventListener("click", () =>
-      this.helpManager?.show()
-    );
-
-    elements.minimizeButton.addEventListener("click", () =>
-      this.uiStateManager?.handleMinimizeClick()
-    );
-
-    elements.collapseButton.addEventListener("click", () =>
-      this.uiStateManager?.toggleCollapse()
-    );
-  }
-
-  /**
    * Retrieves all UI elements managed by the floating window.
    * @returns Object containing all UI elements
    * @throws Error if any element is not found
@@ -541,6 +623,12 @@ Your prompt here"></textarea>
     if (this.domObserver) {
       this.domObserver.disconnect();
       this.domObserver = null;
+    }
+
+    // Clean up draggable manager
+    if (this.draggableManager) {
+      this.draggableManager.destroy();
+      this.draggableManager = null;
     }
 
     this.element?.parentElement?.remove();
