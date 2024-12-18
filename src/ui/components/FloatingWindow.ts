@@ -19,6 +19,7 @@ import { DraggableManager } from "./DraggableManager";
  */
 export class FloatingWindow {
   private element: HTMLElement | null = null;
+  private scriptText: HTMLTextAreaElement | null = null;
   private outputDiv: HTMLElement | null = null;
   private uiStateManager: UIStateManager | null = null;
   private helpManager: HelpManager | null = null;
@@ -289,19 +290,31 @@ Your prompt here"></textarea>
     }
   }
 
+  private getPreviousCommand() {
+    return this.historyService?.getPreviousCommand();
+  }
+
+  private getNextCommand() {
+    return this.historyService?.getNextCommand();
+  }
+
+  private resetScript() {
+    if (this.scriptText) {
+      this.scriptText.focus();
+      this.scriptText.value = "";
+    }
+
+    this.historyService?.resetHistoryIndex();
+  }
+
   /**
    * Binds event listeners to UI elements
    */
   private bindEventListeners(elements: FloatingWindowElements): void {
     this.bindCommandButtonListeners();
 
-    // Add Enter key handler for script text area
-    elements.scriptText.addEventListener("keydown", (e) => {
-      if (e.key === "Enter" && !e.shiftKey) {
-        e.preventDefault();
-        elements.runButton.click();
-      }
-    });
+    const scriptText = elements.scriptText as HTMLTextAreaElement;
+    this.scriptText = scriptText;
 
     // Add history navigation handlers
     const prevCommand = this.element?.querySelector(
@@ -313,17 +326,10 @@ Your prompt here"></textarea>
     const clearScript = this.element?.querySelector(
       "#clearScript"
     ) as HTMLButtonElement;
-    const scriptText = elements.scriptText as HTMLTextAreaElement;
 
-    if (
-      prevCommand &&
-      nextCommand &&
-      clearScript &&
-      scriptText &&
-      this.historyService
-    ) {
+    if (prevCommand && nextCommand && clearScript && scriptText) {
       prevCommand.addEventListener("click", () => {
-        const prevCmd = this.historyService?.getPreviousCommand();
+        const prevCmd = this.getPreviousCommand();
         if (prevCmd) {
           scriptText.value = prevCmd;
           scriptText.focus();
@@ -331,7 +337,7 @@ Your prompt here"></textarea>
       });
 
       nextCommand.addEventListener("click", () => {
-        const nextCmd = this.historyService?.getNextCommand();
+        const nextCmd = this.getNextCommand();
         if (nextCmd) {
           scriptText.value = nextCmd;
           scriptText.focus();
@@ -345,21 +351,33 @@ Your prompt here"></textarea>
 
       // Add keyboard shortcuts
       scriptText.addEventListener("keydown", (e) => {
-        if (e.key === "ArrowUp" && e.ctrlKey) {
+        if (e.key === "ArrowUp" && e.shiftKey) {
           e.preventDefault();
-          const prevCmd = this.historyService?.getPreviousCommand();
+          const prevCmd = this.getPreviousCommand();
           if (prevCmd) {
             scriptText.value = prevCmd;
           }
-        } else if (e.key === "ArrowDown" && e.ctrlKey) {
+        } else if (e.key === "ArrowDown" && e.shiftKey) {
           e.preventDefault();
-          const nextCmd = this.historyService?.getNextCommand();
+          const nextCmd = this.getNextCommand();
           if (nextCmd) {
             scriptText.value = nextCmd;
           }
         }
       });
     }
+
+    // Add Enter key handler for script text area
+    elements.scriptText.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" && !e.shiftKey) {
+        e.preventDefault();
+        elements.runButton.click();
+        this.resetScript();
+      } else if (e.key === "Escape") {
+        e.preventDefault();
+        this.resetScript();
+      }
+    });
 
     // Project search handlers
     const searchContainer = elements.window.querySelector(
@@ -403,6 +421,7 @@ Your prompt here"></textarea>
 
       // Click the run button to trigger cancel in working state
       elements.runButton.click();
+      this.resetScript();
     };
 
     if (searchInput) {
@@ -410,8 +429,10 @@ Your prompt here"></textarea>
         if (e.key === "Enter") {
           e.preventDefault();
           executeProjectSearch();
+          this.resetScript();
         } else if (e.key === "Escape") {
           cancelSearch();
+          this.resetScript();
         }
       });
     }

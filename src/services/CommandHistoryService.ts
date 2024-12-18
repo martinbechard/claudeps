@@ -18,8 +18,12 @@ export class CommandHistoryService {
     const savedHistory = localStorage.getItem(HISTORY_KEY);
     if (savedHistory) {
       this.history = JSON.parse(savedHistory);
-      this.currentIndex = this.history.length - 1;
+      this.resetHistoryIndex();
     }
+  }
+
+  public resetHistoryIndex() {
+    this.currentIndex = -1;
   }
 
   private saveHistory(): void {
@@ -42,24 +46,35 @@ export class CommandHistoryService {
       this.history = this.history.slice(-MAX_HISTORY);
     }
 
-    this.currentIndex = this.history.length - 1;
     this.saveHistory();
   }
 
   public getPreviousCommand(): string | null {
-    if (this.currentIndex > 0) {
-      this.currentIndex--;
-      return this.history[this.currentIndex];
+    if (this.history.length === 0) {
+      return null;
     }
-    return null;
+
+    if (this.currentIndex === -1) {
+      this.currentIndex = this.history.length - 1;
+    } else if (this.currentIndex > 0) {
+      this.currentIndex--;
+    }
+
+    return this.history[this.currentIndex];
   }
 
   public getNextCommand(): string | null {
-    if (this.currentIndex < this.history.length - 1) {
-      this.currentIndex++;
-      return this.history[this.currentIndex];
+    if (this.history.length === 0) {
+      return null;
     }
-    return null;
+
+    if (this.currentIndex === -1) {
+      this.currentIndex = 0;
+    } else if (this.currentIndex < this.history.length - 1) {
+      this.currentIndex++;
+    }
+
+    return this.history[this.currentIndex];
   }
 
   public getCurrentCommand(): string | null {
