@@ -146,10 +146,15 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.type === "anthropic_complete") {
     debugLog("Making Anthropic API request:", request.body);
 
+    const messages = request.body["messages"]?.map((msg) => ({
+      ...msg,
+      role: msg["role"] === "assistant" ? "assistant" : "user",
+    }));
+
     fetch(API_URL, {
       method: "POST",
       headers: getAnthropicHeaders(request.apiKey),
-      body: JSON.stringify(request.body),
+      body: JSON.stringify({ ...request.body, messages }),
     })
       .then(async (response) => {
         if (!response.ok) {
