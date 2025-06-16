@@ -11,7 +11,7 @@ import { ClaudeCache } from "./ClaudeCache";
 import { extractRelPath } from "../utils/PathExtractor";
 
 export class DocumentRetrieval {
-  private static readonly API_URL = "https://api.claude.ai/api/organizations";
+  private static readonly API_URL = "https://claude.ai/api/organizations";
 
   /**
    * Fetches available documents from the API with caching
@@ -73,7 +73,14 @@ export class DocumentRetrieval {
         .split("/")
         .map((part, index, arr) => {
           // Don't transform the filename (last part)
-          if (index === arr.length - 1) return part;
+          // But make sure there's an extension otherwise add .md for markdown
+          if (index === arr.length - 1) {
+            if (!part.includes(".")) {
+              part += ".md"; // Add .md extension if not present
+            }
+            return part;
+          }
+
           // Transform directory names to kabob case
           return part.replace(/\s+/g, "-").toLowerCase();
         })

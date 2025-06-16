@@ -24,7 +24,7 @@ import type {
 import { AnthropicService } from "./AnthropicService";
 
 export class ProjectSearchService {
-  private static readonly API_URL = "https://api.claude.ai/api/organizations";
+  private static readonly API_URL = "https://claude.ai/api/organizations";
   private static readonly MAX_MESSAGE_LENGTH = 5000;
   private static currentAbortController: AbortController | null = null;
   private static isCancelling: boolean = false;

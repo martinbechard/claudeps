@@ -13,15 +13,44 @@
             "state": {
               "type": "markdown",
               "state": {
-                "file": "mcp-client-design-review.md.md",
-                "mode": "source",
+                "file": "Troubleshooting workflow.md",
+                "mode": "preview",
                 "source": false
               },
               "icon": "lucide-file",
-              "title": "mcp-client-design-review.md"
+              "title": "Troubleshooting workflow"
+            }
+          },
+          {
+            "id": "b79fc8408d45048b",
+            "type": "leaf",
+            "state": {
+              "type": "markdown",
+              "state": {
+                "file": "design/commands/retrieval-of-artifacts.md",
+                "mode": "preview",
+                "source": false
+              },
+              "icon": "lucide-file",
+              "title": "retrieval-of-artifacts"
+            }
+          },
+          {
+            "id": "62b4a871017608f0",
+            "type": "leaf",
+            "state": {
+              "type": "markdown",
+              "state": {
+                "file": "design/mcp-client-design.md",
+                "mode": "preview",
+                "source": false
+              },
+              "icon": "lucide-file",
+              "title": "mcp-client-design"
             }
           }
-        ]
+        ],
+        "currentTab": 2
       }
     ],
     "direction": "vertical"
@@ -168,15 +197,19 @@
       "command-palette:Open command palette": false
     }
   },
-  "active": "93ac6890a7111b7c",
+  "active": "62b4a871017608f0",
   "lastOpenFiles": [
-    "design/mcp-client-implementation-plan-review.md.md",
-    "mcp-client-design-review.md.md",
-    "design/mcp-client-design.txt",
+    "design/commands/retrieval-of-artifacts.md",
+    "design/commands/search-project.md",
+    "design/commands",
+    "Troubleshooting workflow.md",
+    "design/mcp-client-design.md",
     "design/mcp-client-implementation-plan.md",
+    "mcp-client-design-review.md.md",
+    "design/mcp-client-implementation-plan-review.md.md",
+    "design/mcp-client-design.txt",
     "design/mcp-client-implementation-plan.txt",
     "mcp-client-implementation-plan.md",
-    "design/mcp-client-design.md",
     "design"
   ]
 }

@@ -255,7 +255,7 @@ Your prompt here"></textarea>
         const tbody = table.createTBody();
 
         const response = await fetch(
-          "https://api.claude.ai/api/organizations/bf87e242-36bf-4b51-9c43-c5a92083e517/projects/a58a32b6-f598-473d-bfe5-a84d1af9015b/docs",
+          "https://claude.ai/api/organizations/bf87e242-36bf-4b51-9c43-c5a92083e517/projects/a58a32b6-f598-473d-bfe5-a84d1af9015b/docs",
           {
             method: "GET",
             headers: {

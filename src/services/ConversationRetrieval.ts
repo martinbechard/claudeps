@@ -40,7 +40,7 @@ export type MessageFilterCallback = (message: ChatMessage) => boolean;
  * Service for managing Claude conversations and artifacts
  */
 export class ConversationRetrieval {
-  private static readonly API_URL = "https://api.claude.ai/api/organizations";
+  private static readonly API_URL = "https://claude.ai/api/organizations";
 
   /**
    * Gets the conversation ID from the current URL
@@ -209,6 +209,13 @@ export class ConversationRetrieval {
     const filePathMatch = extractRelPath(content);
     return filePathMatch;
   }
+  /**Transforms a name to kebab-case
+   * @param name - Name to transform
+   * @returns Transformed name in kebab-case
+   */
+  private static transformNameToKebabCase(name: string): string {
+    return name.replace(/\s+/g, "-").toLowerCase();
+  }
 
   /**
    * Converts artifacts to DocumentInfo format for DownloadTable
@@ -227,19 +234,29 @@ export class ConversationRetrieval {
       }
     });
 
-    return Array.from(unique.values()).map((artifact) => ({
-      fileName: artifact.title,
-      filePath: artifact.filePath || artifact.title,
-      content: artifact.content || "",
-      isSelected: true,
-      metadata: {
-        language: artifact.language,
-        id: artifact.id,
-        // Pass through the dates from the artifact
-        created_at: artifact.created_at,
-        updated_at: artifact.updated_at,
-      },
-    }));
+    return Array.from(unique.values()).map((artifact) => {
+      const artifactFilePath = this.transformNameToKebabCase(
+        artifact.filePath || artifact.title
+      );
+      // Makr sure there's an extension to the filePath; consider it to be markdown if none
+      const filePath = artifactFilePath.includes(".")
+        ? artifactFilePath
+        : artifactFilePath + ".md";
+
+      return {
+        fileName: artifact.title,
+        filePath,
+        content: artifact.content || "",
+        isSelected: true,
+        metadata: {
+          language: artifact.language,
+          id: artifact.id,
+          // Pass through the dates from the artifact
+          created_at: artifact.created_at,
+          updated_at: artifact.updated_at,
+        },
+      };
+    });
   }
 
   /**

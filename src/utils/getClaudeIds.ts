@@ -11,7 +11,7 @@ import { getHeaders } from "./getHeaders";
 import type { Conversation } from "../types";
 import { ClaudeCache } from "../services/ClaudeCache";
 
-const API_URL = "https://api.claude.ai/api/organizations";
+const API_URL = "https://claude.ai/api/organizations";
 
 /**
  * Gets project and conversation IDs from the current URL

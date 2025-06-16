@@ -14,7 +14,7 @@ import { ClaudeCache } from "./ClaudeCache";
  * Service for managing Claude projects and their conversations
  */
 export class ProjectRetrieval {
-  private static readonly API_URL = "https://api.claude.ai/api/organizations";
+  private static readonly API_URL = "https://claude.ai/api/organizations";
 
   /**
    * Clears the cache for project conversations

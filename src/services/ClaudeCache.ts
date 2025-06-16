@@ -50,24 +50,39 @@ export class ClaudeCache {
     urlPattern: RegExp
   ): Promise<void> {
     try {
-      const allKeys =
-        (await StorageService.get<string[]>("all_cache_keys")) || [];
+      // Get the URL-to-key mapping to reverse lookup URLs
+      const urlKeyMap =
+        (await StorageService.get<Record<string, string>>("url_key_mapping")) ||
+        {};
       const keysToRemove: string[] = [];
 
-      for (const key of allKeys) {
-        if (key.startsWith(this.CACHE_KEY_PREFIX)) {
-          const url = atob(key.replace(this.CACHE_KEY_PREFIX, ""));
-          if (urlPattern.test(url)) {
-            keysToRemove.push(key);
-          }
+      // Check each URL in our mapping against the pattern
+      for (const [url, keyPart] of Object.entries(urlKeyMap)) {
+        if (urlPattern.test(url)) {
+          const fullKey = this.CACHE_KEY_PREFIX + keyPart;
+          keysToRemove.push(fullKey);
         }
       }
 
+      // Remove the cache entries
       await Promise.all(keysToRemove.map((key) => StorageService.remove(key)));
+
+      // Update the all_cache_keys list
+      const allKeys =
+        (await StorageService.get<string[]>("all_cache_keys")) || [];
       await StorageService.set(
         "all_cache_keys",
         allKeys.filter((key) => !keysToRemove.includes(key))
       );
+
+      // Update the URL-to-key mapping by removing the matched URLs
+      const updatedUrlKeyMap = { ...urlKeyMap };
+      for (const [url, keyPart] of Object.entries(urlKeyMap)) {
+        if (urlPattern.test(url)) {
+          delete updatedUrlKeyMap[url];
+        }
+      }
+      await StorageService.set("url_key_mapping", updatedUrlKeyMap);
     } catch (error) {
       console.error("Error invalidating cache entries:", error);
       throw new Error("Failed to invalidate cache entries");
@@ -81,7 +96,59 @@ export class ClaudeCache {
     if (!url) {
       throw new Error("URL is required for cache key generation");
     }
-    return this.CACHE_KEY_PREFIX + btoa(url);
+    return this.CACHE_KEY_PREFIX + this.urlToOPFSKey(url);
+  }
+
+  /**
+   * Converts a URL to a valid OPFS filename key
+   * OPFS filenames cannot contain: / \ : * ? " < > |
+   * Also cannot be empty, ".", or ".."
+   * Length should be reasonable (typically under 255 characters)
+   */
+  private static urlToOPFSKey(url: string): string {
+    if (!url) {
+      throw new Error("URL cannot be empty");
+    }
+
+    // Start with the URL
+    let key = url;
+
+    // Replace invalid characters with underscores
+    // This covers most filesystem-unsafe characters
+    key = key.replace(/[\/\\:*?"<>|]/g, "_");
+
+    // Replace other potentially problematic characters
+    key = key.replace(/[\s\t\n\r]/g, "_"); // whitespace
+    key = key.replace(/[#%&{}]/g, "_"); // URL fragments and other special chars
+    key = key.replace(/[^\w\-._]/g, "_"); // Keep only alphanumeric, dash, dot, underscore
+
+    // Ensure it doesn't start or end with dots or spaces (some filesystems don't like this)
+    key = key.replace(/^[.\s]+|[.\s]+$/g, "");
+
+    // Handle special cases that are not allowed
+    if (key === "" || key === "." || key === "..") {
+      key = "invalid_url_" + Date.now();
+    }
+
+    // Limit length to 200 characters to be safe (most filesystems support 255, but we want margin)
+    if (key.length > 200) {
+      // Keep the beginning and end, hash the middle
+      const start = key.substring(0, 80);
+      const end = key.substring(key.length - 80);
+      const middle = key.substring(80, key.length - 80);
+
+      // Create a simple hash of the middle part
+      let hash = 0;
+      for (let i = 0; i < middle.length; i++) {
+        const char = middle.charCodeAt(i);
+        hash = (hash << 5) - hash + char;
+        hash = hash & hash; // Convert to 32-bit integer
+      }
+
+      key = start + "_" + Math.abs(hash).toString(36) + "_" + end;
+    }
+
+    return key;
   }
 
   /**
@@ -121,6 +188,13 @@ export class ClaudeCache {
           "all_cache_keys",
           allKeys.filter((k) => k !== cacheKey)
         );
+        // Update URL-to-key mapping
+        const urlKeyMap =
+          (await StorageService.get<Record<string, string>>(
+            "url_key_mapping"
+          )) || {};
+        delete urlKeyMap[url];
+        await StorageService.set("url_key_mapping", urlKeyMap);
       }
 
       // If not in cache or expired, fetch new data
@@ -142,6 +216,7 @@ export class ClaudeCache {
       };
 
       await StorageService.set(cacheKey, entry);
+
       // Update keys list
       const allKeys =
         (await StorageService.get<string[]>("all_cache_keys")) || [];
@@ -149,6 +224,14 @@ export class ClaudeCache {
         allKeys.push(cacheKey);
         await StorageService.set("all_cache_keys", allKeys);
       }
+
+      // Update URL-to-key mapping
+      const urlKeyMap =
+        (await StorageService.get<Record<string, string>>("url_key_mapping")) ||
+        {};
+      const keyPart = cacheKey.replace(this.CACHE_KEY_PREFIX, "");
+      urlKeyMap[url] = keyPart;
+      await StorageService.set("url_key_mapping", urlKeyMap);
 
       return data as T;
     } catch (error) {
@@ -191,6 +274,12 @@ export class ClaudeCache {
         "all_cache_keys",
         allKeys.filter((k) => k !== cacheKey)
       );
+      // Update URL-to-key mapping
+      const urlKeyMap =
+        (await StorageService.get<Record<string, string>>("url_key_mapping")) ||
+        {};
+      delete urlKeyMap[key];
+      await StorageService.set("url_key_mapping", urlKeyMap);
       return null;
     } catch (error) {
       console.warn("Error in getCached:", error);
@@ -216,6 +305,7 @@ export class ClaudeCache {
       };
 
       await StorageService.set(cacheKey, entry);
+
       // Update keys list
       const allKeys =
         (await StorageService.get<string[]>("all_cache_keys")) || [];
@@ -223,6 +313,14 @@ export class ClaudeCache {
         allKeys.push(cacheKey);
         await StorageService.set("all_cache_keys", allKeys);
       }
+
+      // Update URL-to-key mapping
+      const urlKeyMap =
+        (await StorageService.get<Record<string, string>>("url_key_mapping")) ||
+        {};
+      const keyPart = cacheKey.replace(this.CACHE_KEY_PREFIX, "");
+      urlKeyMap[key] = keyPart;
+      await StorageService.set("url_key_mapping", urlKeyMap);
     } catch (error) {
       console.error("Error in setCached:", error);
       throw new Error(
@@ -245,6 +343,7 @@ export class ClaudeCache {
     try {
       const cacheKey = this.getCacheKey(key);
       await StorageService.remove(cacheKey);
+
       // Update keys list
       const allKeys =
         (await StorageService.get<string[]>("all_cache_keys")) || [];
@@ -252,6 +351,13 @@ export class ClaudeCache {
         "all_cache_keys",
         allKeys.filter((k) => k !== cacheKey)
       );
+
+      // Update URL-to-key mapping
+      const urlKeyMap =
+        (await StorageService.get<Record<string, string>>("url_key_mapping")) ||
+        {};
+      delete urlKeyMap[key];
+      await StorageService.set("url_key_mapping", urlKeyMap);
     } catch (error) {
       console.error("Error in removeCached:", error);
       throw new Error(

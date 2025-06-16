@@ -17,7 +17,7 @@ import { deleteConversation } from "./deleteConversation";
 import type { CompletionResponse } from "../types";
 import { MessageLimitError } from "./messageUtils";
 
-const API_URL = "https://api.claude.ai/api/organizations";
+const API_URL = "https://claude.ai/api/organizations";
 const STREAMING_API_URL = "https://claude.ai/api/organizations";
 const DEFAULT_TIMEZONE = "America/Toronto";
 
